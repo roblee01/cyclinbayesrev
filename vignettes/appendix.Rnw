@@ -1,0 +1,11 @@
+%\VignetteIndexEntry{cyclinbayes Appendix}
+%\VignetteKeywords{causal discovery; LiNGAM; DCG; Bayesian}
+%\VignettePackage{cyclinbayes}
+\documentclass{article}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+\begin{document}
+
+\includepdf[fitpaper=true,pages=-]{cyclinbayes_appendix.pdf}
+
+\end{document}

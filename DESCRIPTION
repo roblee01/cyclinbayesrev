@@ -1,0 +1,27 @@
+Package: cyclinbayes
+Type: Package
+Title: Bayesian MCMC Methods for Cyclic and Acyclic Causal Graphs
+Version: 0.0.0.9000
+Authors@R: person("Robert", "Lee", email = "robertdylee@tamu.edu", role = c("aut", "cre"))
+Description: Tools for Bayesian MCMC estimation of the structure of cyclic and
+    acyclic causal graphs. Includes a Bayesian LiNGAM method BayesSCLingam for DAGs and a cyclic
+    sampler BCD with priors adapted for feedback loops.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 3.6)
+Imports:
+    Rcpp,
+    igraph,
+    HDInterval,
+    ggplot2
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
+Suggests: testthat (>= 3.0.0), roxygen2, SID
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+ByteCompile: true
+SystemRequirements: C++17
+RoxygenNote: 7.3.3
+URL: https://github.com/roblee01/cyclinbayes
+BugReports: https://github.com/roblee01/cyclinbayes/issues
