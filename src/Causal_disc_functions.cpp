@@ -792,7 +792,7 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, do
     double a = a_gamma + accu(Adjacency_matrix);
     double b = b_gamma + total_entries - accu(Adjacency_matrix) - Adjacency_matrix.n_rows;
 
-    double gamma_result = rbeta_cpp(1,a,b)(0);
+    gamma_result = rbeta_cpp(1,a,b)(0);
 
     gamma_list(i-1) = gamma_result;
     //Rcout << "gamma finished" <<std::endl;
@@ -1023,7 +1023,7 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, do
 
     double b_1 = b_gamma_1 + accu(weighted_effects)/2;
 
-    double gamma_1 = rinvgamma_cpp(1,a_1,b_1)(0);
+    gamma_1 = rinvgamma_cpp(1,a_1,b_1)(0);
 
     gamma_1_list(i-1) = gamma_1;
 
