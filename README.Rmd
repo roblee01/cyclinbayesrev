@@ -77,48 +77,23 @@ where the \(i\)-th row of \(Y\) corresponds to
 \]
 
 ```{r}
-#set.seed for reproducibility
-set.seed(21)
-
-
-#######################################
-# Simulation and MCMC settings
-#######################################
-N = 300    # sample size
-num_covariates = 10     # number of features
-M = 2      # number of mixture components
-num_iter = 1000  # number of MCMC iterations
-
-#######################################
-# Hyperparameter setup
-#######################################
-params = list(
-  a_mu = 0,
-  b_mu  = 2,
-  a_gamma = 0.5,
-  b_gamma = 0.5,
-  a_gamma_1 = 2,
-  b_gamma_1 = 1,
-  a_tao = 2,
-  b_tao = 1,
-  a_og_tao = 0.01,
-  b_og_tao = 0.01,
-  alpha = 1
+sim = 1
+ex <- generates_examples_DAG(
+  num_covariates = 20,
+  N              = 100,
+  M_input        = 2,        # components used to GENERATE the errors
+  prob_sparsity  = 0.90,     # = edge_prob 0.10
+  seed_input     = 20 + sim, # the script's set.seed(20 + sim)
+  mag_range      = c(0.4, 0.9),
+  prob_positive  = 0.5,
+  seed_structure = 1,        # dag_structure(seed = 1)
+  seed_weights   = 20        # dag_weights(seed = 20)
 )
 
-#######################################
-# Generate DAG example data
-#######################################
-example_list = generates_examples_DAG(
-  num_covariates = num_covariates,
-  N = N,
-  M = M,
-  prob_sparsity = 0.9,
-  seed_input = 21
-)
-
-data_matrix = example_list$data_matrix
-Adjacency_matrix_true = example_list$Adjacency_matrix_true
+data_matrix = ex$data_matrix
+Adjacency_matrix_true = ex$Adjacency_matrix_true
+Causal_effect_matrix_true = ex$Causal_effect_matrix_true
+Z_matrix_true = ex$Z_matrix_true
 ```
 
 Before examining posterior summaries, it is helpful to visualize the true underlying DAG used in the simulation. This provides a direct point of comparison for the estimated graph structures returned by the sampler. The plot below displays the ground truth adjacency structure, where each directed edge represents a causal relationship from one variable to another.
@@ -152,37 +127,21 @@ With the simulated dataset and prior hyperparameters specified above, we fit the
 For posterior summaries, each iteration's matrices are flattened (vectorized) into a single parameter vector. Concretely, we apply $vec(\cdot)$ to stack all entries of $E^{(t)}$, $B^{(t)}$, $\mu^{(t)}$, and $\tau^{(t)}$, and stack these vectors over iterations to form a matrix of samples where the rows are iterations and columns correspond to fixed matrix entries (one column for $B_{ij}$ or $\mu_{ik}$). This makes element wise quantities, edge probabilities, HPD/credible intervals, and other summaries straightforward to compute.
 
 ```{r example}
-#######################################
-# Run Bayesian LiNGAM (DAG) sampler
-#######################################
-results_lists = BayesDAG(
-  data_matrix,
-  params$a_mu,
-  params$b_mu,
-  params$a_gamma,
-  params$b_gamma,
-  params$a_tao,
-  params$b_tao,
-  params$a_og_tao,
-  params$b_og_tao,
-  params$a_gamma_1,
-  params$b_gamma_1,
-  params$alpha,
-  M,
-  num_iter
-)
-
-#######################################
-# Extract key posterior summaries
-#######################################
-log_likelihood_list = results_lists$log_likelihood_list
-Adjacency_matrix_list = results_lists$Adjacency_matrix_list 
-Causal_effect_matrix_list = results_lists$Causal_effect_matrix_list
-gamma_list = results_lists$gamma_list
-gamma_1_list = results_lists$gamma_1_list
-mu_matrix_list = results_lists$mu_matrix_list
-tao_matrix_list = results_lists$tao_matrix_list
-pi_matrix_list = results_lists$pi_matrix_list
+ ########### Parameter Initialization  ###########
+  
+  B_seed <- directlingam_seed(data_matrix)
+  seed_edge_threshold   = 0.05   # drop |seed coef| below this
+  seed_rho_target       = 0.95   # rescale if spectral radius exceeds this
+  seed_settle_sweeps    = 30     # mixture Gibbs sweeps before handing off
+  
+  init_state <- init_from_seed(
+    B_seed, data_matrix, N, num_covariates, M,
+    a_mu, b_mu, a_tao, b_tao, alpha,
+    a_gamma, b_gamma, a_gamma_1, b_gamma_1,
+    edge_threshold = seed_edge_threshold,
+    rho_target     = seed_rho_target,
+    settle_sweeps  = seed_settle_sweeps
+  )
 ```
 
 To obtain a representative estimate of the graph structure, we use the function `point_est_graph(),` which selects the posterior weighted medoid, the graph that minimizes the weight distance to all other sampled adjacency matrices. Users may select one of the build in distances or supply their own custom functions. The available distance metrics are:

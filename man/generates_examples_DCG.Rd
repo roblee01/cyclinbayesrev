@@ -4,38 +4,87 @@
 \alias{generates_examples_DCG}
 \title{Generate synthetic DCG example data}
 \usage{
-generates_examples_DCG(num_covariates, N, M_input, prob_sparsity, seed_input)
+generates_examples_DCG(
+  num_covariates,
+  N,
+  M_input,
+  prob_sparsity,
+  seed_input,
+  n_cycles = NULL,
+  len_range = c(2, 4),
+  mag_range = c(0.4, 0.9),
+  prob_positive = 0.5,
+  tol_sing = 0.05,
+  rho_max = 0.95,
+  max_tries = 1000
+)
 }
 \arguments{
-\item{num_covariates}{Integer. Number of variables (nodes) in the graph (\eqn{p}).}
+\item{num_covariates}{Integer. Number of variables (nodes), \eqn{p}.}
 
-\item{N}{Integer. Sample size (number of observations).}
+\item{N}{Integer. Sample size.}
 
-\item{M_input}{Integer. Number of mixture components in the noise model.}
+\item{M_input}{Integer. Number of components in the error mixture.}
 
-\item{prob_sparsity}{Numeric in (0,1). Sparsity control used when sampling edges.}
+\item{prob_sparsity}{Numeric in (0, 1). Probability that an ordered pair has
+NO edge, so the target edge density is \code{1 - prob_sparsity}.}
 
-\item{seed_input}{Integer. Random seed for reproducibility.}
+\item{seed_input}{Integer. Random seed, for reproducibility.}
+
+\item{n_cycles}{Integer. Number of vertex-disjoint cycles. The default, NULL,
+picks a value that fits in \eqn{p} vertices given \code{len_range}.}
+
+\item{len_range}{Length-2 numeric. Range of cycle lengths.}
+
+\item{mag_range}{Length-2 numeric. Range of absolute edge weights.}
+
+\item{prob_positive}{Numeric in \link{0, 1}. Probability an edge weight is positive.}
+
+\item{tol_sing}{Numeric. Required margin on \eqn{\min_m |1 - w_m|}.}
+
+\item{rho_max}{Numeric. Upper bound required on the spectral radius.}
+
+\item{max_tries}{Integer. Maximum weight redraws before giving up.}
 }
 \value{
-A list containing at least:
+A list containing
 \describe{
-\item{data_matrix}{An \eqn{N \times p} data matrix.}
-\item{Adjacency_matrix_true}{A \eqn{p \times p} adjacency matrix for the true DCG.}
-\item{Causal_effect_matrix_true}{A \eqn{p \times p} matrix of true causal effects (\eqn{B}).}
+\item{data_matrix}{\eqn{N \times p} data matrix.}
+\item{Adjacency_matrix_true}{\eqn{p \times p} adjacency matrix, entry
+\eqn{(i,j)} nonzero when \eqn{j} is a parent of \eqn{i}.}
+\item{Causal_effect_matrix_true}{\eqn{p \times p} coefficient matrix \eqn{B}.}
+\item{Z_matrix_true}{\eqn{(pN) \times M} indicator matrix of true mixture
+memberships, in the layout used by \code{init_Z}.}
+\item{cycles}{List of the node sets forming each cycle.}
+\item{rho}{Spectral radius of \eqn{B}.}
 }
 }
 \description{
-Utility function to simulate data from a randomly generated sparse directed cyclic
-graph (DCG). The coefficient (causal effect) matrix is rescaled so its spectral
-radius is strictly below 1, ensuring stability of \eqn{(I - B)^{-1}}.
-Noise is generated from a finite Gaussian mixture model.
+Simulates data from a randomly generated sparse directed cyclic graph (DCG).
+The graph is built as a set of vertex-disjoint cycles plus acyclic edges
+between cycle blocks, then given weights whose magnitudes are drawn from
+\code{mag_range} with independently drawn signs. Errors come from a finite
+normal mixture, so the model is identified without a Gaussian assumption.
 
-This is \strong{not} an estimation or causal discovery method. It is provided solely to
-generate toy/example datasets for demonstrations, unit tests, and simulation studies
-used by the package's inference routines.
+This is not an estimation or causal discovery method. It exists to produce
+example data sets for demonstrations, tests and simulation studies.
 }
 \details{
-This generator is intended for internal use in examples and simulation code.
-It should not be used as a modeling tool for real data analysis.
+Because every cycle is vertex-disjoint, the determinant and spectral radius
+have closed forms: with \eqn{w_m} the product of the weights around cycle
+\eqn{m} of length \eqn{L_m},
+\deqn{\det(I - B) = \prod_m (1 - w_m), \qquad \rho(B) = \max_m |w_m|^{1/L_m}.}
+Weights are redrawn until \eqn{\min_m |1 - w_m| \ge} \code{tol_sing} and
+\eqn{\rho(B) <} \code{rho_max}, so \eqn{(I - B)^{-1}} is stable and well
+conditioned.
+}
+\examples{
+ex <- generates_examples_DCG(num_covariates = 7, N = 250, M_input = 2,
+                             prob_sparsity = 0.9, seed_input = 21)
+dim(ex$data_matrix)
+sum(ex$Adjacency_matrix_true)
+ex$rho
+}
+\seealso{
+\code{\link{generates_examples_DAG}} for the acyclic version.
 }

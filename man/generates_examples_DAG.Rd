@@ -4,35 +4,91 @@
 \alias{generates_examples_DAG}
 \title{Generate synthetic DAG example data}
 \usage{
-generates_examples_DAG(num_covariates, N, M_input, prob_sparsity, seed_input)
+generates_examples_DAG(
+  num_covariates,
+  N,
+  M_input,
+  prob_sparsity,
+  seed_input,
+  mag_range = c(0.4, 0.9),
+  prob_positive = 0.5,
+  max_parents = NULL,
+  error_dist = c("mixture", "laplace", "t"),
+  laplace_location = 0,
+  laplace_scale = 1/4,
+  t_df = 7,
+  seed_structure = NULL,
+  seed_weights = NULL
+)
 }
 \arguments{
-\item{num_covariates}{Integer. Number of variables (nodes) in the graph (\eqn{p}).}
+\item{num_covariates}{Integer. Number of variables (nodes), \eqn{p}.}
 
-\item{N}{Integer. Sample size (number of observations).}
+\item{N}{Integer. Sample size.}
 
-\item{M_input}{Integer. Number of mixture components in the noise model.}
+\item{M_input}{Integer. Number of components in the error mixture.}
 
-\item{prob_sparsity}{Numeric in (0,1). Sparsity control used when sampling edges.}
+\item{prob_sparsity}{Numeric in (0, 1). Probability that an ordered pair has
+NO edge, so the target edge density is \code{1 - prob_sparsity}. At most
+half of the ordered pairs can be edges in a DAG.}
 
-\item{seed_input}{Integer. Random seed for reproducibility.}
+\item{seed_input}{Integer. Random seed, for reproducibility.}
+
+\item{mag_range}{Length-2 numeric. Range of absolute edge weights.}
+
+\item{prob_positive}{Numeric in \link{0, 1}. Probability an edge weight is positive.}
+
+\item{max_parents}{Integer or NULL. Optional cap on the number of parents
+per node.}
+
+\item{error_dist}{Error distribution: \code{"mixture"} for the normal
+mixture, \code{"laplace"}, or \code{"t"}. Component labels are drawn in
+every case and returned in \code{Z_matrix_true}; for \code{"laplace"} and
+\code{"t"} the errors themselves do not depend on them.}
+
+\item{laplace_location, laplace_scale}{Location and scale of the Laplace
+errors, used when \code{error_dist = "laplace"}.}
+
+\item{t_df}{Degrees of freedom, used when \code{error_dist = "t"}.}
+
+\item{seed_structure, seed_weights}{Optional separate seeds for the graph
+structure and its weights. Each is applied locally and the previous random
+state is restored afterwards, so the same graph can be reused across
+replicates while the errors keep advancing from \code{seed_input}.}
 }
 \value{
-A list containing at least:
+A list containing
 \describe{
-\item{data_matrix}{An \eqn{N \times p} data matrix.}
-\item{Adjacency_matrix_true}{A \eqn{p \times p} adjacency matrix for the true DAG.}
+\item{data_matrix}{\eqn{N \times p} data matrix.}
+\item{Adjacency_matrix_true}{\eqn{p \times p} adjacency matrix, entry
+\eqn{(i,j)} nonzero when \eqn{j} is a parent of \eqn{i}.}
+\item{Causal_effect_matrix_true}{\eqn{p \times p} coefficient matrix \eqn{B}.}
+\item{Z_matrix_true}{\eqn{(pN) \times M} indicator matrix of true mixture
+memberships, in the layout used by \code{init_Z}.}
+\item{order}{The topological order used, earliest node first.}
 }
 }
 \description{
-Utility function to simulate data from a randomly generated sparse directed acyclic
-graph (DAG) with non-Gaussian noise modeled as a finite Gaussian mixture.
+Simulates data from a randomly generated sparse directed acyclic graph (DAG).
+A random topological order is drawn, edges are placed only from earlier to
+later nodes, and weights are given magnitudes drawn from \code{mag_range}
+with independently drawn signs. Errors come from a finite normal mixture, so
+the model is identified without a Gaussian assumption.
 
-This is \strong{not} an estimation or causal discovery method. It is provided solely to
-generate toy/example datasets for demonstrations, unit tests, and simulation studies
-used by the package's inference routines.
+This is not an estimation or causal discovery method. It exists to produce
+example data sets for demonstrations, tests and simulation studies.
 }
 \details{
-This generator is intended for internal use in examples and simulation code.
-It should not be used as a modeling tool for real data analysis.
+Because all edges respect a topological order, \eqn{B} is nilpotent: by
+construction \eqn{\det(I - B) = 1} and \eqn{\rho(B) = 0}, so
+\eqn{(I - B)^{-1}} always exists and no rejection step is needed.
+}
+\examples{
+ex <- generates_examples_DAG(num_covariates = 7, N = 250, M_input = 2,
+                             prob_sparsity = 0.9, seed_input = 21)
+dim(ex$data_matrix)
+sum(ex$Adjacency_matrix_true)
+}
+\seealso{
+\code{\link{generates_examples_DCG}} for the cyclic version.
 }
