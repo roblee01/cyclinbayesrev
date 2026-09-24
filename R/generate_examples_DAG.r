@@ -26,6 +26,17 @@
 #' @param prob_positive Numeric in [0, 1]. Probability an edge weight is positive.
 #' @param max_parents Integer or NULL. Optional cap on the number of parents
 #'   per node.
+#' @param error_dist Error distribution: \code{"mixture"} for the normal
+#'   mixture, \code{"laplace"}, or \code{"t"}. Component labels are drawn in
+#'   every case and returned in \code{Z_matrix_true}; for \code{"laplace"} and
+#'   \code{"t"} the errors themselves do not depend on them.
+#' @param laplace_location,laplace_scale Location and scale of the Laplace
+#'   errors, used when \code{error_dist = "laplace"}.
+#' @param t_df Degrees of freedom, used when \code{error_dist = "t"}.
+#' @param seed_structure,seed_weights Optional separate seeds for the graph
+#'   structure and its weights. Each is applied locally and the previous random
+#'   state is restored afterwards, so the same graph can be reused across
+#'   replicates while the errors keep advancing from \code{seed_input}.
 #'
 #' @return A list containing
 #' \describe{
@@ -49,7 +60,15 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
                                    seed_input,
                                    mag_range     = c(0.4, 0.9),
                                    prob_positive = 0.5,
-                                   max_parents   = NULL) {
+                                   max_parents   = NULL,
+                                   error_dist    = c("mixture", "laplace", "t"),
+                                   laplace_location = 0,
+                                   laplace_scale    = 1/4,
+                                   t_df             = 7,
+                                   seed_structure   = NULL,
+                                   seed_weights     = NULL) {
+
+  error_dist <- match.arg(error_dist)
 
   p <- as.integer(num_covariates)
   if (p < 2L)       stop("num_covariates must be at least 2.", call. = FALSE)
@@ -64,9 +83,22 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
 
   set.seed(seed_input)
 
+  ## Apply a local seed and restore the previous state afterwards, so a fixed
+  ## graph can be paired with error streams that differ by replicate.
+  .with_seed <- function(seed, expr) {
+    if (is.null(seed)) return(expr())
+    old <- if (exists(".Random.seed", envir = .GlobalEnv))
+      get(".Random.seed", envir = .GlobalEnv) else NULL
+    set.seed(seed)
+    on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv),
+            add = TRUE)
+    expr()
+  }
+
   ## ------------------------------------------------------------------
   ## 1. STRUCTURE
   ## ------------------------------------------------------------------
+  struct <- .with_seed(seed_structure, function() {
   ## random topological order: ord[k] is the node in position k
   ord <- sample(p)
   pos <- integer(p); pos[ord] <- seq_len(p)
@@ -104,20 +136,26 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
     warning("Only ", taken, " of ", target,
             " edges could be placed under max_parents = ", max_parents, ".",
             call. = FALSE)
+  list(E = E, edges = edges, ord = ord)
+  })
+  E <- struct$E; edges <- struct$edges; ord <- struct$ord
 
   ## ------------------------------------------------------------------
   ## 2. WEIGHTS: magnitude first, then an independent sign
   ## ------------------------------------------------------------------
-  n_edge    <- length(edges)
-  magnitude <- runif(n_edge, mag_range[1], mag_range[2])
-  sign_draw <- rbinom(n_edge, size = 1, prob = prob_positive)
-  b         <- ifelse(sign_draw == 1, 1, -1) * magnitude
+  B <- .with_seed(seed_weights, function() {
+    n_edge    <- length(edges)
+    magnitude <- runif(n_edge, mag_range[1], mag_range[2])
+    sign_draw <- rbinom(n_edge, size = 1, prob = prob_positive)
+    b         <- ifelse(sign_draw == 1, 1, -1) * magnitude
 
-  B <- matrix(0, p, p)
-  for (k in seq_along(edges)) {
-    e <- edges[[k]]
-    B[e[1], e[2]] <- b[k]
-  }
+    Bw <- matrix(0, p, p)
+    for (k in seq_along(edges)) {
+      e <- edges[[k]]
+      Bw[e[1], e[2]] <- b[k]
+    }
+    Bw
+  })
 
   Adjacency_matrix_true <- (B != 0) * 1
 
@@ -134,11 +172,23 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
     for (z in seq_len(N)) {
       kk <- sample(seq_len(M), size = 1, replace = TRUE)
       Z_matrix_true[(i - 1L) * N + z, kk] <- 1
-      epsilon_true[z, i] <- rnorm(1, mu_epsilon[kk], sigma_epsilon[kk])
+      epsilon_true[z, i] <- switch(
+        error_dist,
+        mixture = rnorm(1, mu_epsilon[kk], sigma_epsilon[kk]),
+        ## same closed form (and same single runif draw) as VGAM::rlaplace
+        laplace = {
+          u <- runif(1)
+          laplace_location - sign(u - 0.5) * laplace_scale *
+            (log(2) + if (u < 0.5) log(u) else log1p(-u))
+        },
+        t = rt(1, t_df)
+      )
     }
   }
 
-  data_matrix <- t(solve(diag(p) - B, t(epsilon_true)))
+  A_inv <- solve(diag(p) - B)
+  data_matrix <- matrix(0, N, p)
+  for (i in seq_len(N)) data_matrix[i, ] <- (A_inv %*% epsilon_true[i, ])[, 1]
 
   list(data_matrix               = data_matrix,
        Adjacency_matrix_true     = Adjacency_matrix_true,
