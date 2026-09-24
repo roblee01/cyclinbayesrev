@@ -18,7 +18,15 @@ BayesDAG(
   b_gamma_1 = 1,
   alpha = 1,
   M,
-  num_iter
+  num_iter,
+  init_Adjacency = NULL,
+  init_Causal_effect = NULL,
+  init_mu = NULL,
+  init_tao = NULL,
+  init_pi = NULL,
+  init_Z = NULL,
+  init_gamma_1 = NULL,
+  init_gamma_result = NULL
 )
 }
 \arguments{
@@ -58,9 +66,33 @@ Default value is 1}
 \item{M}{Integer giving the maximum number of mixture components allowed in the normal mixture error model.}
 
 \item{num_iter}{Integer giving the total number of MCMC iterations for the \code{BayesDAG} algorithm.}
+
+\item{init_Adjacency}{Optional \eqn{p \times p} matrix giving the starting adjacency matrix. Entry \eqn{(i,j)} is 1 when \eqn{j} is a parent of \eqn{i}. The diagonal is ignored. Must be acyclic, since this sampler's edge moves assume a DAG. Defaults to NULL, which starts from the prior/random draw.}
+
+\item{init_Causal_effect}{Optional \eqn{p \times p} matrix of starting coefficients. Entries where \code{init_Adjacency} is 0 are set to 0. Defaults to NULL.}
+
+\item{init_mu}{Optional \eqn{p \times M} matrix of starting mixture-component means. Defaults to NULL.}
+
+\item{init_tao}{Optional \eqn{p \times M} matrix of starting mixture-component variances. Defaults to NULL.}
+
+\item{init_pi}{Optional \eqn{p \times M} matrix of starting mixture weights; rows should sum to 1. Defaults to NULL.}
+
+\item{init_Z}{Optional \eqn{(p N) \times M} indicator matrix of starting component memberships, stacked variable by variable, with one 1 per row. Defaults to NULL.}
+
+\item{init_gamma_1}{Optional starting value for the slab variance \eqn{\gamma_1}. Defaults to NULL.}
+
+\item{init_gamma_result}{Optional starting value for the edge-inclusion probability \eqn{\gamma}. Defaults to NULL.}
 }
 \value{
-A list (from the C backend) typically containing adjacency and causal effect matrices and, optionally, samples/diagnostics.
+A list with one row per MCMC iteration in each trace:
+\describe{
+\item{Adjacency_matrix_list}{draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
+\item{Causal_effect_matrix_list}{draws of the coefficient matrix, same layout}
+\item{gamma_list, gamma_1_list}{draws of the edge-inclusion probability and the slab variance}
+\item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{draws of the error-mixture means, variances and weights}
+\item{log_likelihood_list}{log-likelihood at each iteration}
+}
+Unlike \code{\link{BayesDCG}}, every iteration is stored, so burn-in must be discarded afterwards.
 }
 \description{
 Fits a Bayesian Collapsed Gibbs sampler of the LiNGAM model with non-Gaussian errors modeled
@@ -68,71 +100,61 @@ via a finite normal mixture, returning posterior samples for the graph
 structure and causal effect coefficients.
 }
 \examples{
-# Run BayesDAG based on simulated example
+# Run BayesDAG on a simulated acyclic example
 
 set.seed(21)
 
-# Simulation Settings
+N <- 250               # sample size
+num_covariates <- 7    # number of features
+M <- 2                 # mixture components for the error distribution
+num_iter <- 5000       # MCMC iterations
 
-N = 300 # sample size
-num_covariates = 10 # number of variables (p)
-M = 2 # number of Gaussian mixture components
-num_iter = 5000 # number of MCMC iterations
+# True DAG and data
+truth <- generate_dag(num_covariates, edge_prob = 0.15,
+                      mag_range = c(0.4, 0.9))
+Adjacency_matrix_true <- truth$E
 
+err <- matrix(rnorm(N * num_covariates, mean = 2 * sample(c(-1, 1),
+              N * num_covariates, TRUE), sd = 0.5), N, num_covariates)
+data_matrix <- t(solve(diag(num_covariates) - truth$B, t(err)))
 
-# Generate Synthetic DAG Data
-
-example_list = generates_examples_DAG(num_covariates, N, M, 0.9, 21)
-
-data_matrix = example_list$data_matrix # generated data
-Adjacency_matrix_true = example_list$Adjacency_matrix_true # true graph structure
-
-
-# Hyperparameter Structure
-
-params = list(
-a_mu = 0,
-b_mu = 2,
-a_gamma = 0.5,
-b_gamma = 0.5,
-a_gamma_1 = 2,
-b_gamma_1 = 1,
-a_tao = 2,
-b_tao = 1,
-a_og_tao = 0.01,
-b_og_tao = 0.01,
-alpha = 1
+results_lists <- BayesDAG(
+  data_matrix,
+  a_mu = 0, b_mu = 2,
+  a_gamma = 0.5, b_gamma = 0.5,
+  a_tao = 2, b_tao = 1,
+  a_og_tao = 0.01, b_og_tao = 0.01,
+  a_gamma_1 = 2, b_gamma_1 = 1,
+  alpha = 1,
+  M = M,
+  num_iter = num_iter
 )
 
-# Run Bayesian LiNGAM (DAG) with a small iteration count
+# This sampler stores every iteration, so discard burn-in yourself
+keep <- seq(floor(num_iter / 2) + 1, num_iter)
+edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list[keep, ]),
+                    num_covariates, num_covariates)
+estimated_graph <- (edge_prob > 0.5) * 1
 
-results_lists = BayesDAG(
-data_matrix,
-params$a_mu,
-params$b_mu,
-params$a_gamma,
-params$b_gamma,
-params$a_tao,
-params$b_tao,
-params$a_og_tao,
-params$b_og_tao,
-params$a_gamma_1,
-params$b_gamma_1,
-params$alpha,
-M,
-num_iter
+mean(estimated_graph == Adjacency_matrix_true)
+head(results_lists$log_likelihood_list)
+
+# Continuing a chain: start a second run from the last draw.
+# init_Adjacency must be acyclic, which any stored draw is.
+
+last <- nrow(results_lists$Adjacency_matrix_list)
+
+results_lists2 <- BayesDAG(
+  data_matrix,
+  M = M, num_iter = num_iter,
+  init_Adjacency     = matrix(results_lists$Adjacency_matrix_list[last, ],
+                              num_covariates, num_covariates),
+  init_Causal_effect = matrix(results_lists$Causal_effect_matrix_list[last, ],
+                              num_covariates, num_covariates),
+  init_mu            = matrix(results_lists$mu_matrix_list[last, ], num_covariates, M),
+  init_tao           = matrix(results_lists$tao_matrix_list[last, ], num_covariates, M),
+  init_pi            = matrix(results_lists$pi_matrix_list[last, ], num_covariates, M),
+  init_gamma_1       = results_lists$gamma_1_list[last],
+  init_gamma_result  = results_lists$gamma_list[last]
 )
-
-# Basic posterior summaries
-
-Adjacency_matrix_list = results_lists$Adjacency_matrix_list
-Causal_effect_matrix_list = results_lists$Causal_effect_matrix_list
-gamma_list = results_lists$gamma_list
-gamma_1_list = results_lists$gamma_1_list
-mu_matrix_list = results_lists$mu_matrix_list
-tao_matrix_list = results_lists$tao_matrix_list
-pi_matrix_list = results_lists$pi_matrix_list
-log_likelihood_list = results_lists$log_likelihood_list
-
-head(log_likelihood_list)
 }

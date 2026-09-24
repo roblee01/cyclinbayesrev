@@ -1,4 +1,4 @@
-Package: cyclinbayes
+Package: cyclinbayesrev
 Type: Package
 Title: Bayesian MCMC Methods for Cyclic and Acyclic Causal Graphs
 Version: 0.0.0.9000

@@ -16,7 +16,16 @@ BayesDCG(
   b_gamma_1 = 0.5,
   alpha = 1,
   M,
-  num_iter
+  num_iter,
+  burn_in_iterations = floor(0.7 * num_iter),
+  init_Adjacency = NULL,
+  init_Causal_effect = NULL,
+  init_mu = NULL,
+  init_tao = NULL,
+  init_pi = NULL,
+  init_Z = NULL,
+  init_gamma_1 = NULL,
+  init_gamma_result = NULL
 )
 }
 \arguments{
@@ -50,74 +59,102 @@ Default value is 1}
 \item{M}{Integer giving the maximum number of mixture components allowed in the normal mixture error model.}
 
 \item{num_iter}{Integer giving the total number of MCMC iterations for the \code{BayesDCG} algorithm.}
+
+\item{burn_in_iterations}{Integer giving the length of the unconstrained phase. Must be smaller than \code{num_iter}, otherwise the constrained phase never runs and no draws are stored. Defaults to 70 percent of \code{num_iter}.}
+
+\item{init_Adjacency}{Optional \eqn{p \times p} matrix giving the starting adjacency matrix. Entry \eqn{(i,j)} is 1 when \eqn{j} is a parent of \eqn{i}. The diagonal is ignored. Defaults to NULL, which starts from the prior/random draw.}
+
+\item{init_Causal_effect}{Optional \eqn{p \times p} matrix of starting coefficients. Entries where \code{init_Adjacency} is 0 are set to 0. Defaults to NULL.}
+
+\item{init_mu}{Optional \eqn{p \times M} matrix of starting mixture-component means. Defaults to NULL.}
+
+\item{init_tao}{Optional \eqn{p \times M} matrix of starting mixture-component variances. Defaults to NULL.}
+
+\item{init_pi}{Optional \eqn{p \times M} matrix of starting mixture weights; rows should sum to 1. Defaults to NULL.}
+
+\item{init_Z}{Optional \eqn{(p N) \times M} indicator matrix of starting component memberships, stacked variable by variable, with one 1 per row. Defaults to NULL.}
+
+\item{init_gamma_1}{Optional starting value for the slab variance \eqn{\gamma_1}. Defaults to NULL.}
+
+\item{init_gamma_result}{Optional starting value for the edge-inclusion probability \eqn{\gamma}. Defaults to NULL.}
 }
 \value{
-A list (from the C backend) typically containing adjacency and causal-effect matrices and samples/diagnostics.
+A list with components
+\describe{
+\item{Adjacency_matrix_list}{matrix of stored draws, one row per draw, each row \code{as.vector()} of the \eqn{p \times p} adjacency matrix}
+\item{Causal_effect_matrix_list}{stored draws of the coefficient matrix, same layout}
+\item{gamma_list, gamma_1_list}{stored draws of the edge-inclusion probability and the slab variance}
+\item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{stored draws of the error-mixture means, variances and weights}
+\item{first_stored_iteration}{iteration number corresponding to the first stored row}
+\item{n_stored}{number of stored draws}
+}
 }
 \description{
 BayesDCG fits a Bayesian linear causal model on a directed cyclic graph (DCG) with non-Gaussian errors, returning posterior samples of the adjacency and causal-effect matrices for systems with feedback.
 }
+\details{
+The sampler runs in two phases. Iterations up to \code{burn_in_iterations} are
+unconstrained; later iterations are restricted to graphs whose cycles are
+vertex-disjoint, with a one-time projection at the handoff and an annealing
+window immediately after it. Draws from the unconstrained and annealing
+phases are not from the target posterior, so they are run but not stored:
+every returned row is a posterior draw. Row \eqn{k} of each returned trace
+corresponds to iteration \code{first_stored_iteration + k - 1}.
+}
 \examples{
-# Run BayesDCG based on simulated example
+# Run BayesDCG on a simulated cyclic example
 
 set.seed(21)
 
-# Simulation Settings
+N <- 250               # sample size
+num_covariates <- 7    # number of features
+M <- 2                 # mixture components for the error distribution
+num_iter <- 5000       # MCMC iterations
 
-N = 250 # Sample size for the test data
-num_covariates = 7 # Number of features for test data
-M = 2 # Number of finite clusters for mixed normal in likelihood
-num_iter = 5000 # Number of iterations MCMC runs
+# True cyclic graph and data
+truth <- generate_dcg(num_covariates, edge_prob = 0.15, n_cycles = 2,
+                      mag_range = c(0.4, 0.9))
+Adjacency_matrix_true <- truth$E
 
+err <- matrix(rnorm(N * num_covariates, mean = 2 * sample(c(-1, 1),
+              N * num_covariates, TRUE), sd = 0.5), N, num_covariates)
+data_matrix <- t(solve(diag(num_covariates) - truth$B, t(err)))
 
-# Generate Synthetic DCG Data
-
-example_list = generates_examples_DCG(num_covariates, N, M, 0.9, 21)
-
-data_matrix = example_list$data_matrix # generated data
-Adjacency_matrix_true = example_list$Adjacency_matrix_true # true graph structure
-
-# Hyperparameter Structure
-
-params = list(
- a_mu = 0,
- b_mu = 2,
- a_gamma = 1,
- b_gamma = 20,
- a_gamma_1 = 0.5,
- b_gamma_1 = 0.5,
- a_tao = 2,
- b_tao = 1,
- alpha = 1
+result_list <- BayesDCG(
+  data_matrix,
+  a_mu = 0, b_mu = 2,
+  a_gamma = 1, b_gamma = 20,
+  a_tao = 2, b_tao = 1,
+  a_gamma_1 = 0.5, b_gamma_1 = 0.5,
+  alpha = 1,
+  M = M,
+  num_iter = num_iter,
+  burn_in_iterations = 3500
 )
 
-# Run BayesDCG
+# Posterior edge probabilities and a thresholded graph
+edge_prob <- matrix(colMeans(result_list$Adjacency_matrix_list),
+                    num_covariates, num_covariates)
+estimated_graph <- (edge_prob > 0.5) * 1
 
-result_list = BayesDCG(
- data_matrix,
- params$a_mu,
- params$b_mu,
- params$a_gamma,
- params$b_gamma,
- params$a_tao,
- params$b_tao,
- params$a_gamma_1,
- params$b_gamma_1,
- params$alpha,
- M,
- num_iter
+result_list$n_stored
+mean(estimated_graph == Adjacency_matrix_true)
+
+# Continuing a chain: start a second run from the last stored draw
+
+last <- result_list$n_stored
+
+result_list2 <- BayesDCG(
+  data_matrix,
+  M = M, num_iter = num_iter, burn_in_iterations = 3500,
+  init_Adjacency     = matrix(result_list$Adjacency_matrix_list[last, ],
+                              num_covariates, num_covariates),
+  init_Causal_effect = matrix(result_list$Causal_effect_matrix_list[last, ],
+                              num_covariates, num_covariates),
+  init_mu            = matrix(result_list$mu_matrix_list[last, ], num_covariates, M),
+  init_tao           = matrix(result_list$tao_matrix_list[last, ], num_covariates, M),
+  init_pi            = matrix(result_list$pi_matrix_list[last, ], num_covariates, M),
+  init_gamma_1       = result_list$gamma_1_list[last],
+  init_gamma_result  = result_list$gamma_list[last]
 )
-
-# Basic posterior summaries
-
-Adjacency_matrix_list = result_list$Adjacency_matrix_list
-Causal_effect_matrix_list = result_list$Causal_effect_matrix_list
-gamma_list = result_list$gamma_list
-gamma_1_list = result_list$gamma_1_list
-mu_matrix_list = result_list$mu_matrix_list
-tao_matrix_list = result_list$tao_matrix_list
-pi_matrix_list = result_list$pi_matrix_list
-log_likelihood_list = result_list$log_likelihood_list
-
-head(log_likelihood_list)
 }

@@ -28,14 +28,14 @@ Implemented in Rcpp, cyclinbayes leverages optimized C++ routines to handle larg
 You can install the development version of cyclinbayes from GitHub using remotes:
 
 ```{r}
-#install.packages("remotes")
-#remotes::install_github("roblee01/cyclinbayes")
+install.packages("remotes")
+remotes::install_github("roblee01/cyclinbayesrev")
 ```
 
 Then load the package:
 
 ```{r}
-library(cyclinbayes)
+library(cyclinbayesrev)
 library(ggplot2)
 library(igraph)
 

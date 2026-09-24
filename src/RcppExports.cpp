@@ -11,9 +11,33 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// rdirichlet_cpp
+arma::vec rdirichlet_cpp(const arma::vec& alpha);
+RcppExport SEXP _cyclinbayesrev_rdirichlet_cpp(SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(rdirichlet_cpp(alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rinvgamma_cpp
+arma::vec rinvgamma_cpp(arma::uword n, double shape, double scale);
+RcppExport SEXP _cyclinbayesrev_rinvgamma_cpp(SEXP nSEXP, SEXP shapeSEXP, SEXP scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::uword >::type n(nSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(rinvgamma_cpp(n, shape, scale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // logSumExp
 double logSumExp(const arma::rowvec& x);
-RcppExport SEXP _cyclinbayes_logSumExp(SEXP xSEXP) {
+RcppExport SEXP _cyclinbayesrev_logSumExp(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -24,7 +48,7 @@ END_RCPP
 }
 // log_dgamma
 double log_dgamma(double x, double a, double b);
-RcppExport SEXP _cyclinbayes_log_dgamma(SEXP xSEXP, SEXP aSEXP, SEXP bSEXP) {
+RcppExport SEXP _cyclinbayesrev_log_dgamma(SEXP xSEXP, SEXP aSEXP, SEXP bSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -35,9 +59,127 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mu_fun
+arma::mat mu_fun(const arma::mat& Z_matrix, double a_mu, double b_mu, const arma::mat& tao_mat, const arma::mat& epsilon_mat, int num_covariates, int M, int N);
+RcppExport SEXP _cyclinbayesrev_mu_fun(SEXP Z_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP tao_matSEXP, SEXP epsilon_matSEXP, SEXP num_covariatesSEXP, SEXP MSEXP, SEXP NSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z_matrix(Z_matrixSEXP);
+    Rcpp::traits::input_parameter< double >::type a_mu(a_muSEXP);
+    Rcpp::traits::input_parameter< double >::type b_mu(b_muSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tao_mat(tao_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type epsilon_mat(epsilon_matSEXP);
+    Rcpp::traits::input_parameter< int >::type num_covariates(num_covariatesSEXP);
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    rcpp_result_gen = Rcpp::wrap(mu_fun(Z_matrix, a_mu, b_mu, tao_mat, epsilon_mat, num_covariates, M, N));
+    return rcpp_result_gen;
+END_RCPP
+}
+// tao_fun
+arma::mat tao_fun(const arma::mat& Z_matrix, double a_tao, double b_tao, const arma::mat& mu_mat, const arma::mat& epsilon_mat, int num_covariates, int M, int N);
+RcppExport SEXP _cyclinbayesrev_tao_fun(SEXP Z_matrixSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP mu_matSEXP, SEXP epsilon_matSEXP, SEXP num_covariatesSEXP, SEXP MSEXP, SEXP NSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z_matrix(Z_matrixSEXP);
+    Rcpp::traits::input_parameter< double >::type a_tao(a_taoSEXP);
+    Rcpp::traits::input_parameter< double >::type b_tao(b_taoSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mu_mat(mu_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type epsilon_mat(epsilon_matSEXP);
+    Rcpp::traits::input_parameter< int >::type num_covariates(num_covariatesSEXP);
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    rcpp_result_gen = Rcpp::wrap(tao_fun(Z_matrix, a_tao, b_tao, mu_mat, epsilon_mat, num_covariates, M, N));
+    return rcpp_result_gen;
+END_RCPP
+}
+// pi_fun
+arma::mat pi_fun(const arma::mat& Z_matrix, int num_covariates, double alpha, double K, int N);
+RcppExport SEXP _cyclinbayesrev_pi_fun(SEXP Z_matrixSEXP, SEXP num_covariatesSEXP, SEXP alphaSEXP, SEXP KSEXP, SEXP NSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z_matrix(Z_matrixSEXP);
+    Rcpp::traits::input_parameter< int >::type num_covariates(num_covariatesSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    rcpp_result_gen = Rcpp::wrap(pi_fun(Z_matrix, num_covariates, alpha, K, N));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Z_matrix_fun
+arma::mat Z_matrix_fun(arma::mat Z_matrix_1, arma::mat epsilon_mat, arma::mat mu_mat, arma::mat tao_mat, arma::mat pi_mat, double num_covariates, int N, int M);
+RcppExport SEXP _cyclinbayesrev_Z_matrix_fun(SEXP Z_matrix_1SEXP, SEXP epsilon_matSEXP, SEXP mu_matSEXP, SEXP tao_matSEXP, SEXP pi_matSEXP, SEXP num_covariatesSEXP, SEXP NSEXP, SEXP MSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Z_matrix_1(Z_matrix_1SEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type epsilon_mat(epsilon_matSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type mu_mat(mu_matSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type tao_mat(tao_matSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type pi_mat(pi_matSEXP);
+    Rcpp::traits::input_parameter< double >::type num_covariates(num_covariatesSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    rcpp_result_gen = Rcpp::wrap(Z_matrix_fun(Z_matrix_1, epsilon_mat, mu_mat, tao_mat, pi_mat, num_covariates, N, M));
+    return rcpp_result_gen;
+END_RCPP
+}
+// is_dag
+bool is_dag(const arma::mat& adj);
+RcppExport SEXP _cyclinbayesrev_is_dag(SEXP adjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type adj(adjSEXP);
+    rcpp_result_gen = Rcpp::wrap(is_dag(adj));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Metropolis_hastings_portions_Z_cpp
+arma::vec Metropolis_hastings_portions_Z_cpp(const arma::mat& data_matrix, const arma::mat& Adjacency_matrix_enter, const arma::mat& Causal_effect_matrix_enter, const arma::mat& Z_matrix_enter, const arma::mat& mu_mat, const arma::mat& tao_mat, double N, double M, double gamma_1, double gamma_result);
+RcppExport SEXP _cyclinbayesrev_Metropolis_hastings_portions_Z_cpp(SEXP data_matrixSEXP, SEXP Adjacency_matrix_enterSEXP, SEXP Causal_effect_matrix_enterSEXP, SEXP Z_matrix_enterSEXP, SEXP mu_matSEXP, SEXP tao_matSEXP, SEXP NSEXP, SEXP MSEXP, SEXP gamma_1SEXP, SEXP gamma_resultSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type data_matrix(data_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Adjacency_matrix_enter(Adjacency_matrix_enterSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Causal_effect_matrix_enter(Causal_effect_matrix_enterSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z_matrix_enter(Z_matrix_enterSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mu_mat(mu_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tao_mat(tao_matSEXP);
+    Rcpp::traits::input_parameter< double >::type N(NSEXP);
+    Rcpp::traits::input_parameter< double >::type M(MSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma_1(gamma_1SEXP);
+    Rcpp::traits::input_parameter< double >::type gamma_result(gamma_resultSEXP);
+    rcpp_result_gen = Rcpp::wrap(Metropolis_hastings_portions_Z_cpp(data_matrix, Adjacency_matrix_enter, Causal_effect_matrix_enter, Z_matrix_enter, mu_mat, tao_mat, N, M, gamma_1, gamma_result));
+    return rcpp_result_gen;
+END_RCPP
+}
+// score_state_cpp
+arma::vec score_state_cpp(const arma::mat& data_matrix, const arma::mat& Adjacency_matrix, const arma::mat& Causal_effect_matrix, const arma::mat& Z_matrix, const arma::mat& mu_mat, const arma::mat& tao_mat, double gamma_1, double gamma_result);
+RcppExport SEXP _cyclinbayesrev_score_state_cpp(SEXP data_matrixSEXP, SEXP Adjacency_matrixSEXP, SEXP Causal_effect_matrixSEXP, SEXP Z_matrixSEXP, SEXP mu_matSEXP, SEXP tao_matSEXP, SEXP gamma_1SEXP, SEXP gamma_resultSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type data_matrix(data_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Adjacency_matrix(Adjacency_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Causal_effect_matrix(Causal_effect_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z_matrix(Z_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mu_mat(mu_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tao_mat(tao_matSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma_1(gamma_1SEXP);
+    Rcpp::traits::input_parameter< double >::type gamma_result(gamma_resultSEXP);
+    rcpp_result_gen = Rcpp::wrap(score_state_cpp(data_matrix, Adjacency_matrix, Causal_effect_matrix, Z_matrix, mu_mat, tao_mat, gamma_1, gamma_result));
+    return rcpp_result_gen;
+END_RCPP
+}
 // BayesSCLingam_cpp
-List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_og_tao, double b_og_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter);
-RcppExport SEXP _cyclinbayes_BayesSCLingam_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_og_taoSEXP, SEXP b_og_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP) {
+List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_og_tao, double b_og_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter, Rcpp::Nullable<Rcpp::NumericMatrix> init_Adjacency, Rcpp::Nullable<Rcpp::NumericMatrix> init_Causal_effect, Rcpp::Nullable<Rcpp::NumericMatrix> init_mu, Rcpp::Nullable<Rcpp::NumericMatrix> init_tao, Rcpp::Nullable<Rcpp::NumericMatrix> init_pi, Rcpp::Nullable<Rcpp::NumericMatrix> init_Z, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_1, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_result);
+RcppExport SEXP _cyclinbayesrev_BayesSCLingam_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_og_taoSEXP, SEXP b_og_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP, SEXP init_AdjacencySEXP, SEXP init_Causal_effectSEXP, SEXP init_muSEXP, SEXP init_taoSEXP, SEXP init_piSEXP, SEXP init_ZSEXP, SEXP init_gamma_1SEXP, SEXP init_gamma_resultSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -55,13 +197,58 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type M(MSEXP);
     Rcpp::traits::input_parameter< double >::type num_iter(num_iterSEXP);
-    rcpp_result_gen = Rcpp::wrap(BayesSCLingam_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Adjacency(init_AdjacencySEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Causal_effect(init_Causal_effectSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_mu(init_muSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_tao(init_taoSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_pi(init_piSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Z(init_ZSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_1(init_gamma_1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_result(init_gamma_resultSEXP);
+    rcpp_result_gen = Rcpp::wrap(BayesSCLingam_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result));
+    return rcpp_result_gen;
+END_RCPP
+}
+// project_to_disjoint_cycle_space_cpp
+Rcpp::List project_to_disjoint_cycle_space_cpp(Rcpp::NumericMatrix Adj, Rcpp::NumericMatrix B, int max_steps, double stability_target, bool verbose);
+RcppExport SEXP _cyclinbayesrev_project_to_disjoint_cycle_space_cpp(SEXP AdjSEXP, SEXP BSEXP, SEXP max_stepsSEXP, SEXP stability_targetSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Adj(AdjSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type B(BSEXP);
+    Rcpp::traits::input_parameter< int >::type max_steps(max_stepsSEXP);
+    Rcpp::traits::input_parameter< double >::type stability_target(stability_targetSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(project_to_disjoint_cycle_space_cpp(Adj, B, max_steps, stability_target, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
+// has_disjoint_cycles_cpp
+bool has_disjoint_cycles_cpp(Rcpp::NumericMatrix Adj);
+RcppExport SEXP _cyclinbayesrev_has_disjoint_cycles_cpp(SEXP AdjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Adj(AdjSEXP);
+    rcpp_result_gen = Rcpp::wrap(has_disjoint_cycles_cpp(Adj));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_sccs_cpp
+Rcpp::List get_sccs_cpp(Rcpp::NumericMatrix Adj);
+RcppExport SEXP _cyclinbayesrev_get_sccs_cpp(SEXP AdjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Adj(AdjSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_sccs_cpp(Adj));
     return rcpp_result_gen;
 END_RCPP
 }
 // BCD_cpp
-List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter);
-RcppExport SEXP _cyclinbayes_BCD_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP) {
+List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter, double burn_in_iterations, Rcpp::Nullable<Rcpp::NumericMatrix> init_Adjacency, Rcpp::Nullable<Rcpp::NumericMatrix> init_Causal_effect, Rcpp::Nullable<Rcpp::NumericMatrix> init_mu, Rcpp::Nullable<Rcpp::NumericMatrix> init_tao, Rcpp::Nullable<Rcpp::NumericMatrix> init_pi, Rcpp::Nullable<Rcpp::NumericMatrix> init_Z, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_1, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_result);
+RcppExport SEXP _cyclinbayesrev_BCD_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP, SEXP burn_in_iterationsSEXP, SEXP init_AdjacencySEXP, SEXP init_Causal_effectSEXP, SEXP init_muSEXP, SEXP init_taoSEXP, SEXP init_piSEXP, SEXP init_ZSEXP, SEXP init_gamma_1SEXP, SEXP init_gamma_resultSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -77,20 +264,41 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type M(MSEXP);
     Rcpp::traits::input_parameter< double >::type num_iter(num_iterSEXP);
-    rcpp_result_gen = Rcpp::wrap(BCD_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter));
+    Rcpp::traits::input_parameter< double >::type burn_in_iterations(burn_in_iterationsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Adjacency(init_AdjacencySEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Causal_effect(init_Causal_effectSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_mu(init_muSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_tao(init_taoSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_pi(init_piSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Z(init_ZSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_1(init_gamma_1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_result(init_gamma_resultSEXP);
+    rcpp_result_gen = Rcpp::wrap(BCD_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, burn_in_iterations, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cyclinbayes_logSumExp", (DL_FUNC) &_cyclinbayes_logSumExp, 1},
-    {"_cyclinbayes_log_dgamma", (DL_FUNC) &_cyclinbayes_log_dgamma, 3},
-    {"_cyclinbayes_BayesSCLingam_cpp", (DL_FUNC) &_cyclinbayes_BayesSCLingam_cpp, 14},
-    {"_cyclinbayes_BCD_cpp", (DL_FUNC) &_cyclinbayes_BCD_cpp, 12},
+    {"_cyclinbayesrev_rdirichlet_cpp", (DL_FUNC) &_cyclinbayesrev_rdirichlet_cpp, 1},
+    {"_cyclinbayesrev_rinvgamma_cpp", (DL_FUNC) &_cyclinbayesrev_rinvgamma_cpp, 3},
+    {"_cyclinbayesrev_logSumExp", (DL_FUNC) &_cyclinbayesrev_logSumExp, 1},
+    {"_cyclinbayesrev_log_dgamma", (DL_FUNC) &_cyclinbayesrev_log_dgamma, 3},
+    {"_cyclinbayesrev_mu_fun", (DL_FUNC) &_cyclinbayesrev_mu_fun, 8},
+    {"_cyclinbayesrev_tao_fun", (DL_FUNC) &_cyclinbayesrev_tao_fun, 8},
+    {"_cyclinbayesrev_pi_fun", (DL_FUNC) &_cyclinbayesrev_pi_fun, 5},
+    {"_cyclinbayesrev_Z_matrix_fun", (DL_FUNC) &_cyclinbayesrev_Z_matrix_fun, 8},
+    {"_cyclinbayesrev_is_dag", (DL_FUNC) &_cyclinbayesrev_is_dag, 1},
+    {"_cyclinbayesrev_Metropolis_hastings_portions_Z_cpp", (DL_FUNC) &_cyclinbayesrev_Metropolis_hastings_portions_Z_cpp, 10},
+    {"_cyclinbayesrev_score_state_cpp", (DL_FUNC) &_cyclinbayesrev_score_state_cpp, 8},
+    {"_cyclinbayesrev_BayesSCLingam_cpp", (DL_FUNC) &_cyclinbayesrev_BayesSCLingam_cpp, 22},
+    {"_cyclinbayesrev_project_to_disjoint_cycle_space_cpp", (DL_FUNC) &_cyclinbayesrev_project_to_disjoint_cycle_space_cpp, 5},
+    {"_cyclinbayesrev_has_disjoint_cycles_cpp", (DL_FUNC) &_cyclinbayesrev_has_disjoint_cycles_cpp, 1},
+    {"_cyclinbayesrev_get_sccs_cpp", (DL_FUNC) &_cyclinbayesrev_get_sccs_cpp, 1},
+    {"_cyclinbayesrev_BCD_cpp", (DL_FUNC) &_cyclinbayesrev_BCD_cpp, 21},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_cyclinbayes(DllInfo *dll) {
+RcppExport void R_init_cyclinbayesrev(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

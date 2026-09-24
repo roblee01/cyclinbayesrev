@@ -1,159 +1,148 @@
 #' Generate synthetic DAG example data
 #'
 #' @description
-#' Utility function to simulate data from a randomly generated sparse directed acyclic
-#' graph (DAG) with non-Gaussian noise modeled as a finite Gaussian mixture.
+#' Simulates data from a randomly generated sparse directed acyclic graph (DAG).
+#' A random topological order is drawn, edges are placed only from earlier to
+#' later nodes, and weights are given magnitudes drawn from \code{mag_range}
+#' with independently drawn signs. Errors come from a finite normal mixture, so
+#' the model is identified without a Gaussian assumption.
 #'
-#' This is **not** an estimation or causal discovery method. It is provided solely to
-#' generate toy/example datasets for demonstrations, unit tests, and simulation studies
-#' used by the package's inference routines.
-#'
-#' @param num_covariates Integer. Number of variables (nodes) in the graph (\eqn{p}).
-#' @param N Integer. Sample size (number of observations).
-#' @param M_input Integer. Number of mixture components in the noise model.
-#' @param prob_sparsity Numeric in (0,1). Sparsity control used when sampling edges.
-#' @param seed_input Integer. Random seed for reproducibility.
-#'
-#' @return A list containing at least:
-#' \describe{
-#'   \item{data_matrix}{An \eqn{N \times p} data matrix.}
-#'   \item{Adjacency_matrix_true}{A \eqn{p \times p} adjacency matrix for the true DAG.}
-#' }
+#' This is not an estimation or causal discovery method. It exists to produce
+#' example data sets for demonstrations, tests and simulation studies.
 #'
 #' @details
-#' This generator is intended for internal use in examples and simulation code.
-#' It should not be used as a modeling tool for real data analysis.
+#' Because all edges respect a topological order, \eqn{B} is nilpotent: by
+#' construction \eqn{\det(I - B) = 1} and \eqn{\rho(B) = 0}, so
+#' \eqn{(I - B)^{-1}} always exists and no rejection step is needed.
 #'
+#' @param num_covariates Integer. Number of variables (nodes), \eqn{p}.
+#' @param N Integer. Sample size.
+#' @param M_input Integer. Number of components in the error mixture.
+#' @param prob_sparsity Numeric in (0, 1). Probability that an ordered pair has
+#'   NO edge, so the target edge density is \code{1 - prob_sparsity}. At most
+#'   half of the ordered pairs can be edges in a DAG.
+#' @param seed_input Integer. Random seed, for reproducibility.
+#' @param mag_range Length-2 numeric. Range of absolute edge weights.
+#' @param prob_positive Numeric in [0, 1]. Probability an edge weight is positive.
+#' @param max_parents Integer or NULL. Optional cap on the number of parents
+#'   per node.
+#'
+#' @return A list containing
+#' \describe{
+#'   \item{data_matrix}{\eqn{N \times p} data matrix.}
+#'   \item{Adjacency_matrix_true}{\eqn{p \times p} adjacency matrix, entry
+#'     \eqn{(i,j)} nonzero when \eqn{j} is a parent of \eqn{i}.}
+#'   \item{Causal_effect_matrix_true}{\eqn{p \times p} coefficient matrix \eqn{B}.}
+#'   \item{Z_matrix_true}{\eqn{(pN) \times M} indicator matrix of true mixture
+#'     memberships, in the layout used by \code{init_Z}.}
+#'   \item{order}{The topological order used, earliest node first.}
+#' }
+#'
+#' @seealso \code{\link{generates_examples_DCG}} for the cyclic version.
 #' @export
+#' @examples
+#' ex <- generates_examples_DAG(num_covariates = 7, N = 250, M_input = 2,
+#'                              prob_sparsity = 0.9, seed_input = 21)
+#' dim(ex$data_matrix)
+#' sum(ex$Adjacency_matrix_true)
+generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
+                                   seed_input,
+                                   mag_range     = c(0.4, 0.9),
+                                   prob_positive = 0.5,
+                                   max_parents   = NULL) {
 
+  p <- as.integer(num_covariates)
+  if (p < 2L)       stop("num_covariates must be at least 2.", call. = FALSE)
+  if (N < 1L)       stop("N must be at least 1.", call. = FALSE)
+  if (M_input < 1L) stop("M_input must be at least 1.", call. = FALSE)
+  if (prob_sparsity <= 0 || prob_sparsity >= 1)
+    stop("prob_sparsity must be strictly between 0 and 1.", call. = FALSE)
+  if (length(mag_range) != 2 || mag_range[1] < 0 || mag_range[1] > mag_range[2])
+    stop("mag_range must be c(lower, upper) with 0 <= lower <= upper.", call. = FALSE)
+  if (prob_positive < 0 || prob_positive > 1)
+    stop("prob_positive must be between 0 and 1.", call. = FALSE)
 
-generates_examples_DAG = function(num_covariates,
-                                  N,
-                                  M_input,
-                                  prob_sparsity,
-                                  seed_input) {
   set.seed(seed_input)
 
-  is_dag_adj <- function(A) {
-    A <- (A != 0) * 1L
-    diag(A) <- 0L
-    p <- nrow(A)
+  ## ------------------------------------------------------------------
+  ## 1. STRUCTURE
+  ## ------------------------------------------------------------------
+  ## random topological order: ord[k] is the node in position k
+  ord <- sample(p)
+  pos <- integer(p); pos[ord] <- seq_len(p)
 
-    indeg <- colSums(A)
-    queue <- which(indeg == 0L)
-    removed <- 0L
+  ## legal edges: u -> v whenever u precedes v
+  g    <- expand.grid(u = seq_len(p), v = seq_len(p))
+  pool <- g[pos[g$u] < pos[g$v], , drop = FALSE]
+  pool_size <- nrow(pool)                       # = p*(p-1)/2
 
-    while (length(queue) > 0L) {
-      vtx <- queue[1L]
-      queue <- queue[-1L]
-      removed <- removed + 1L
-
-      out <- which(A[vtx, ] != 0L)
-      if (length(out)) {
-        indeg[out] <- indeg[out] - 1L
-        A[vtx, out] <- 0L
-        queue <- c(queue, out[indeg[out] == 0L])
-      }
-    }
-    removed == p
+  total_cells <- p * (p - 1)
+  target <- as.integer(round((1 - prob_sparsity) * total_cells))
+  if (target > pool_size) {
+    warning("Requested ", target, " edges but only ", pool_size,
+            " are legal in a DAG on ", p, " nodes (max density ",
+            sprintf("%.3f", pool_size / total_cells), "). Using all of them.",
+            call. = FALSE)
+    target <- pool_size
   }
 
-  Causal_effect_matrix_true = matrix(0, num_covariates, num_covariates)
-  Causal_effect_matrix_true_str = matrix(0, num_covariates, num_covariates)
-  Causal_effect_matrix_true_err = matrix(0, num_covariates, num_covariates)
-  Adjacency_matrix_true = matrix(0, num_covariates, num_covariates)
-  identity_mat = matrix(0, num_covariates, num_covariates)
-  diag(identity_mat) = 1
+  E     <- matrix(0, p, p)
+  edges <- list()
+  perm  <- sample.int(pool_size)                # random order to fill in
+  n_par <- integer(p)
+  taken <- 0L
+  for (r in perm) {
+    if (taken >= target) break
+    u <- pool$u[r]; v <- pool$v[r]
+    if (!is.null(max_parents) && n_par[v] >= max_parents) next
+    E[v, u] <- 1                                # u -> v
+    n_par[v] <- n_par[v] + 1L
+    edges[[length(edges) + 1L]] <- c(v, u)
+    taken <- taken + 1L
+  }
+  if (taken < target)
+    warning("Only ", taken, " of ", target,
+            " edges could be placed under max_parents = ", max_parents, ".",
+            call. = FALSE)
 
+  ## ------------------------------------------------------------------
+  ## 2. WEIGHTS: magnitude first, then an independent sign
+  ## ------------------------------------------------------------------
+  n_edge    <- length(edges)
+  magnitude <- runif(n_edge, mag_range[1], mag_range[2])
+  sign_draw <- rbinom(n_edge, size = 1, prob = prob_positive)
+  b         <- ifelse(sign_draw == 1, 1, -1) * magnitude
 
-  rho = 1
+  B <- matrix(0, p, p)
+  for (k in seq_along(edges)) {
+    e <- edges[[k]]
+    B[e[1], e[2]] <- b[k]
+  }
 
-  probability_sparsity = c(prob_sparsity, 1 - prob_sparsity)
-  if (num_covariates <= 10) {
-    repeat {
-      probability_sparsity_tmp_1 = probability_sparsity
-      Causal_effect_matrix_true_str[lower.tri(Causal_effect_matrix_true_str)] = sample(0:1,
-                                                                                       length(lower.tri(Causal_effect_matrix_true_str[lower.tri(Causal_effect_matrix_true_str)])),
-                                                                                       replace = TRUE,
-                                                                                       prob = probability_sparsity_tmp_1)
+  Adjacency_matrix_true <- (B != 0) * 1
 
-      Causal_effect_matrix_true_str[upper.tri(Causal_effect_matrix_true_str)] = sample(0:1,
-                                                                                       length(lower.tri(Causal_effect_matrix_true_str[lower.tri(Causal_effect_matrix_true_str)])),
-                                                                                       replace = TRUE,
-                                                                                       prob = probability_sparsity_tmp_1)
-      for (i in 1:nrow(Causal_effect_matrix_true)) {
-        for (j in 1:(nrow(Causal_effect_matrix_true))) {
-          if (Causal_effect_matrix_true_str[i, j] &&
-              Causal_effect_matrix_true_str[j, i] == 1) {
-            choose_result = sample(1:2, 1, replace = TRUE)
-            if (choose_result == 1) {
-              Causal_effect_matrix_true_str[j, i] = 0   #sample(0:1)/100
-            } else{
-              Causal_effect_matrix_true_str[i, j] = 0  #sample(0:1)/100
-            }
-          }
-        }#end of j
-      }#end of i
-      if (is_dag_adj(Causal_effect_matrix_true_str) &&
-          (det(identity_mat - Causal_effect_matrix_true_str) != 0) &&
-          (mean(Causal_effect_matrix_true_str) != 0))
-        break
-    }#end of repeat
-  }#end of if
+  ## ------------------------------------------------------------------
+  ## 3. ERRORS and DATA
+  ## ------------------------------------------------------------------
+  M <- as.integer(M_input)
+  mu_epsilon    <- if (M == 1L) 0   else seq(-0.5, 0.5, length.out = M)
+  sigma_epsilon <- if (M == 1L) 0.1 else seq( 0.1, 0.3, length.out = M)
 
-
-
-  Causal_effect_matrix_true = Causal_effect_matrix_true_str
-  #+Causal_effect_matrix_true_err
-
-  Adjacency_matrix_true = Causal_effect_matrix_true_str
-
-  ## sd for epsilon
-  # sigma_epsilon_true<-0.25 #since mean_tao=0.25, var_tao=0.0625
-
-
-  #################################################################
-  ####  Generation of epsilon_true from M mixture: M can be 1-3
-  #################################################################
-  #N = 500
-  #truemodel=2
-
-  data_matrix = matrix(0, N, num_covariates)
-
-  M = 2
-
-  ### General Case Test ###
-  M_1 = 2
-
-  mu_epsilon <- c(-0.5, 0.5)
-  #mu_epsilon <- c(0,0)
-  sigma_epsilon_true <- c(0.1, 0.3)
-
-  epsilon_true <- matrix(0, N, num_covariates)
-  Z_matrix_true <- matrix(0, num_covariates * N, M_1)
-  # loop from 1:num_obs
-  for (i_epsilon in 1:num_covariates) {
-    for (z_epsilon in 1:N) {
-      case_epsilon <- sample(1:M_1, size = 1, replace = T)
-      ##### To express  Z^z_{i,k} as a matrix, we consider Z^z_{i,k}=Z_matrix_true[(i-1)*num_obs+z,k] #######
-      iz_epsilon = (i_epsilon - 1) * N + z_epsilon
-      Z_matrix_true[iz_epsilon, case_epsilon] = 1  #### row = (i_epsilon -1)*num_obs+z_epsilon
-
-      epsilon_true[z_epsilon, i_epsilon] = rnorm(1, mu_epsilon[case_epsilon], sigma_epsilon_true[case_epsilon])
+  epsilon_true  <- matrix(0, N, p)
+  Z_matrix_true <- matrix(0, p * N, M)
+  for (i in seq_len(p)) {
+    for (z in seq_len(N)) {
+      kk <- sample(seq_len(M), size = 1, replace = TRUE)
+      Z_matrix_true[(i - 1L) * N + z, kk] <- 1
+      epsilon_true[z, i] <- rnorm(1, mu_epsilon[kk], sigma_epsilon[kk])
     }
   }
 
-  ################## end of epsilon_true generation
+  data_matrix <- t(solve(diag(p) - B, t(epsilon_true)))
 
-  ########### Generation of Y using Causal_effect_matric_true and epsilon_true
-
-  identity_mat = matrix(0, nrow = num_covariates, ncol = num_covariates)
-  diag(identity_mat) = rep(1, num_covariates)
-
-  for (i in 1:N) {
-    data_matrix[i, ] =  (solve(identity_mat - Causal_effect_matrix_true) %*% epsilon_true[i, ])[, 1]
-  }
-
-
-  return(list(data_matrix = data_matrix, Adjacency_matrix_true = Adjacency_matrix_true))
+  list(data_matrix               = data_matrix,
+       Adjacency_matrix_true     = Adjacency_matrix_true,
+       Causal_effect_matrix_true = B,
+       Z_matrix_true             = Z_matrix_true,
+       order                     = ord)
 }
