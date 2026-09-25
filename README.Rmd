@@ -77,23 +77,50 @@ where the \(i\)-th row of \(Y\) corresponds to
 \]
 
 ```{r}
-sim = 1
-ex <- generates_examples_DAG(
-  num_covariates = 20,
-  N              = 100,
+#######################################
+# Simulation and MCMC settings
+#######################################
+N = 100 # Sample size for the test data
+num_covariates = 10 # Number of features for test data
+M = 5 # Number of finite clusters for mixed normal in likelihood
+num_iter = 10000 # Number of iterations MCMC runs
+
+#######################################
+# Hyperparameter setup
+#######################################
+params = list(
+  a_mu      = 0,
+  b_mu      = 2,
+  a_gamma   = 0.5,
+  b_gamma   = 0.5,
+  a_gamma_1 = 2,
+  b_gamma_1 = 1,
+  a_og_tao = 0.01,
+  b_og_tao = 0.01,
+  a_tao     = 2,
+  b_tao     = 1,
+  alpha     = 1
+)
+
+#######################################
+# Generate DAG Example
+#######################################
+example_list = generates_examples_DAG(
+  num_covariates = num_covariates,
+  N              = N,
   M_input        = 2,        # components used to GENERATE the errors
   prob_sparsity  = 0.90,     # = edge_prob 0.10
-  seed_input     = 20 + sim, # the script's set.seed(20 + sim)
+  seed_input     = 21, # the script's set.seed(20 + sim)
   mag_range      = c(0.4, 0.9),
   prob_positive  = 0.5,
   seed_structure = 1,        # dag_structure(seed = 1)
   seed_weights   = 20        # dag_weights(seed = 20)
 )
 
-data_matrix = ex$data_matrix
-Adjacency_matrix_true = ex$Adjacency_matrix_true
-Causal_effect_matrix_true = ex$Causal_effect_matrix_true
-Z_matrix_true = ex$Z_matrix_true
+data_matrix = example_list$data_matrix
+Adjacency_matrix_true = example_list$Adjacency_matrix_true
+Causal_effect_matrix_true = example_list$Causal_effect_matrix_true
+Z_matrix_true = example_list$Z_matrix_true
 ```
 
 Before examining posterior summaries, it is helpful to visualize the true underlying DAG used in the simulation. This provides a direct point of comparison for the estimated graph structures returned by the sampler. The plot below displays the ground truth adjacency structure, where each directed edge represents a causal relationship from one variable to another.
@@ -127,21 +154,59 @@ With the simulated dataset and prior hyperparameters specified above, we fit the
 For posterior summaries, each iteration's matrices are flattened (vectorized) into a single parameter vector. Concretely, we apply $vec(\cdot)$ to stack all entries of $E^{(t)}$, $B^{(t)}$, $\mu^{(t)}$, and $\tau^{(t)}$, and stack these vectors over iterations to form a matrix of samples where the rows are iterations and columns correspond to fixed matrix entries (one column for $B_{ij}$ or $\mu_{ik}$). This makes element wise quantities, edge probabilities, HPD/credible intervals, and other summaries straightforward to compute.
 
 ```{r example}
- ########### Parameter Initialization  ###########
-  
-  B_seed <- directlingam_seed(data_matrix)
-  seed_edge_threshold   = 0.05   # drop |seed coef| below this
-  seed_rho_target       = 0.95   # rescale if spectral radius exceeds this
-  seed_settle_sweeps    = 30     # mixture Gibbs sweeps before handing off
-  
-  init_state <- init_from_seed(
-    B_seed, data_matrix, N, num_covariates, M,
-    a_mu, b_mu, a_tao, b_tao, alpha,
-    a_gamma, b_gamma, a_gamma_1, b_gamma_1,
-    edge_threshold = seed_edge_threshold,
-    rho_target     = seed_rho_target,
-    settle_sweeps  = seed_settle_sweeps
-  )
+#######################################
+# Parameter Initialization
+#######################################
+B_seed = directlingam_seed(data_matrix)
+seed_edge_threshold = 0.05   # drop |seed coef| below this
+seed_rho_target = 0.95   # rescale if spectral radius exceeds this
+seed_settle_sweeps = 30     # mixture Gibbs sweeps before handing off
+#######################################
+# Initialization
+#######################################  
+init_state = init_from_seed(
+  B_seed, data_matrix, N, num_covariates, M,
+  params$a_mu, params$b_mu, params$a_tao, params$b_tao, params$alpha,
+  params$a_gamma, params$b_gamma, params$a_gamma_1, params$b_gamma_1,
+  edge_threshold = seed_edge_threshold,
+  rho_target     = seed_rho_target,
+  settle_sweeps  = seed_settle_sweeps
+)
+#######################################
+# Run Bayesian DAG Sampler
+#######################################
+
+results_list = BayesDAG(
+      data_matrix,
+      params$a_mu, params$b_mu,
+      params$a_gamma, params$b_gamma,
+      params$a_tao, params$b_tao,
+      params$a_og_tao, params$b_og_tao,
+      params$a_gamma_1, params$b_gamma_1,
+      params$alpha,
+      M,
+      num_iter,
+      init_Adjacency     = init_state$Adjacency_matrix,
+      init_Causal_effect = init_state$Causal_effect_matrix,
+      init_mu            = init_state$mu_mat,
+      init_tao           = init_state$tao_mat,
+      init_pi            = init_state$pi_mat,
+      init_Z             = init_state$Z_matrix,
+      init_gamma_1       = init_state$gamma_1,
+      init_gamma_result  = init_state$gamma_result
+    )
+
+#######################################
+# Extract posterior outputs
+#######################################
+log_likelihood_list = results_list$log_likelihood_list
+Adjacency_matrix_list = results_list$Adjacency_matrix_list 
+Causal_effect_matrix_list = results_list$Causal_effect_matrix_list
+gamma_list = results_list$gamma_list
+gamma_1_list = results_list$gamma_1_list
+mu_matrix_list = results_list$mu_matrix_list
+tao_matrix_list = results_list$tao_matrix_list
+pi_matrix_list = results_list$pi_matrix_list
 ```
 
 To obtain a representative estimate of the graph structure, we use the function `point_est_graph(),` which selects the posterior weighted medoid, the graph that minimizes the weight distance to all other sampled adjacency matrices. Users may select one of the build in distances or supply their own custom functions. The available distance metrics are:
@@ -298,6 +363,21 @@ params = list(
   b_tao     = 1,
   alpha     = 1
 )
+#######################################
+# Generate DAG Example
+#######################################
+example_list = generates_examples_DAG(
+  num_covariates = num_covariates,
+  N              = N,
+  M_input        = 2,        # components used to GENERATE the errors
+  prob_sparsity  = 0.90,     # = edge_prob 0.10
+  seed_input     = 21, # the script's set.seed(20 + sim)
+  mag_range      = c(0.4, 0.9),
+  prob_positive  = 0.5,
+  seed_structure = 1,        # dag_structure(seed = 1)
+  seed_weights   = 20        # dag_weights(seed = 20)
+)
+
 
 #######################################
 # Generate DCG example data
@@ -310,6 +390,20 @@ example_list = generates_examples_DCG(
   0.9,
   21
 )
+
+
+generates_examples_DCG <- function(num_covariates, N, M_input, prob_sparsity,
+                                   seed_input,
+                                   n_cycles      = NULL,
+                                   len_range     = c(2, 4),
+                                   mag_range     = c(0.4, 0.9),
+                                   prob_positive = 0.5,
+                                   tol_sing      = 0.05,
+                                   rho_max       = 0.95,
+                                   max_tries     = 1000)
+
+
+
 
 data_matrix = example_list$data_matrix
 Adjacency_matrix_true = example_list$Adjacency_matrix_true

@@ -9,25 +9,19 @@
 #' @param dist_fun Optional user-supplied distance function used when
 #'   \code{dist_type = "custom"}. Must have signature \code{dist_fun(A, B)},
 #'   where \code{A} and \code{B} are \eqn{p \times p} adjacency matrices and
-#'   return a non negative scalar distance.
+#'   return a non negative scalar distance. It is assumed to be symmetric.
 #' @param burn_in_frac Fraction of iterations to discard as burn in (default 0.75).
 #' @return The best possible graph structure found through finding the smallest distance through finding the weighted medoid based on chosen distance.
 #'
+#' @details
+#' SID is not symmetric. For \code{dist_type = "sid"} each candidate graph is
+#' scored as the estimate against every posterior sample as the truth, i.e. the
+#' returned graph minimises \eqn{\sum_g w_g \, SID(G_g, \hat G)}, the posterior
+#' expected SID. SID is computed natively (no dependency on the SID package);
+#' it reproduces \code{SID::structIntervDist(trueGraph, estGraph)$sid} for DAGs.
+#'
 #' @export
 #' @examples
-#' # This example runs the BayesDAG sampler and then selects a point-estimate graph.
-#' # NOTE: If you want to use dist_type = "sid", you may need extra dependencies.
-#' # In particular, on some systems the SID package requires Bioconductor RBGL/graph.
-#'
-#' \donttest{
-#' # Install required packages if needed:
-#' # install.packages(c("remotes", "SID"))
-#' #
-#' # If SID complains about missing RBGL/graph, install via Bioconductor:
-#' # install.packages("BiocManager")
-#' # BiocManager::install(c("graph", "RBGL"))
-#' }
-#'
 #' N = 300
 #' num_covariates = 10
 #' M = 2
@@ -61,118 +55,182 @@
 #' # Best graph structure using SHD
 #' point_est_graph(Adjacency_matrix_list, dist_type = "shd")
 #'
-#' # Best graph structure using SID (requires the SID package and possibly RBGL/graph)
-#' if (requireNamespace("SID", quietly = TRUE)) {
-#'   point_est_graph(Adjacency_matrix_list, dist_type = "sid")
-#' }
+#' # Best graph structure using SID
+#' point_est_graph(Adjacency_matrix_list, dist_type = "sid")
 #'
 #' # Best graph structure using a custom distance
 #' custom_edge_mismatch = function(A, B) sum(abs(A - B))
 #' point_est_graph(Adjacency_matrix_list, dist_type = "custom", dist_fun = custom_edge_mismatch)
 
-
-
 point_est_graph = function(Adjacency_matrix_list, dist_type = 'shd', dist_fun = NULL, burn_in_frac = 0.75){
-  num_covariates = sqrt(ncol(Adjacency_matrix_list))
+  dist_type = match.arg(dist_type, c("shd", "sid", "custom"))
   num_iter = nrow(Adjacency_matrix_list)
-  p = sqrt(ncol(Adjacency_matrix_list))
-
+  p = as.integer(round(sqrt(ncol(Adjacency_matrix_list))))
 
   start = floor(burn_in_frac * num_iter) + 1L
-  keep_inds = start:num_iter
-  A_keep = Adjacency_matrix_list[keep_inds, , drop = FALSE]
+  A_keep = Adjacency_matrix_list[start:num_iter, , drop = FALSE]
 
+  # Unique graphs and their counts, without the paste/strsplit round trip
+  keys = do.call(paste, c(as.data.frame(A_keep), sep = ""))
+  first = !duplicated(keys)
+  weights = tabulate(match(keys, keys[first]), nbins = sum(first))
+  U = A_keep[first, , drop = FALSE]          # v x p^2, one unique graph per row
+  v = nrow(U)
 
-
-
-
-  structure_strings = apply(A_keep, 1, paste, collapse = ",")
-  unique_strings = unique(structure_strings)
-
-  tab = table(factor(structure_strings, levels = unique_strings))
-  weights = as.numeric(tab)
-
-  unique_graphs = lapply(unique_strings, function(s) {
-    vec = as.numeric(strsplit(s, ",")[[1]])
-    matrix(vec, p, p)
-  })
-
-  v = length(unique_graphs)
-
-  D = matrix(0, nrow = v, ncol = v)
+  if (v == 1L) return(matrix(U[1, ], p, p))
 
   if (dist_type == "shd") {
 
-    for (i in seq_len(v - 1L)) {
-      Ai = unique_graphs[[i]]
-      for (j in (i + 1L):v) {
-        Aj = unique_graphs[[j]]
-        d_ij = sum(Ai != Aj)   # structural Hamming distance on adjacency matrices
-        D[i, j] = d_ij
-        D[j, i] = d_ij
-      }
-    }
+    # Hamming distance for all pairs at once: |a| + |b| - 2 a.b
+    B = (U != 0) * 1
+    s = rowSums(B)
+    D = outer(s, s, "+") - 2 * tcrossprod(B)
+    total_distance = as.vector(D %*% weights)
 
-  } else if(dist_type == 'sid'){
+  } else if (dist_type == "sid") {
 
-    is_dag_adj <- function(A) {
-      A <- (A != 0) * 1L
-      diag(A) <- 0L
-      p <- nrow(A)
+    S = sid_matrix(U, p)                     # S[g, h] = SID(true = G_g, est = G_h)
+    total_distance = as.vector(crossprod(S, weights))
 
-      indeg <- colSums(A)
-      queue <- which(indeg == 0L)
-      removed <- 0L
+  } else {
 
-      while (length(queue) > 0L) {
-        vtx <- queue[1L]
-        queue <- queue[-1L]
-        removed <- removed + 1L
-
-        out <- which(A[vtx, ] != 0L)
-        if (length(out)) {
-          indeg[out] <- indeg[out] - 1L
-          A[vtx, out] <- 0L
-          queue <- c(queue, out[indeg[out] == 0L])
-        }
-      }
-      removed == p
-    }
-
-    is_dag <- vapply(unique_graphs, is_dag_adj, logical(1L))
-    if (!all(is_dag)) stop("SID distance requires all graphs to be DAGs.")
-
-    for (i in seq_len(v - 1L)) {
-      Ai <- (unique_graphs[[i]] != 0) * 1L
-      diag(Ai) <- 0L
-      for (j in (i + 1L):v) {
-        Aj <- (unique_graphs[[j]] != 0) * 1L
-        diag(Aj) <- 0L
-        d_ij <- SID::structIntervDist(Ai, Aj)$sid
-        D[i, j] <- d_ij
-        D[j, i] <- d_ij
-      }
-    }
-  } else if (dist_type == "custom") {
     if (is.null(dist_fun)) {
       stop("dist_type = 'custom' requires a user-supplied dist_fun(A, B).")
     }
-
+    graphs = lapply(seq_len(v), function(k) matrix(U[k, ], p, p))
+    D = matrix(0, v, v)
     for (i in seq_len(v - 1L)) {
-      Ai <- unique_graphs[[i]]
+      Ai = graphs[[i]]
       for (j in (i + 1L):v) {
-        d_ij <- dist_fun(Ai, unique_graphs[[j]])
-        D[i, j] <- d_ij
-        D[j, i] <- d_ij
+        D[i, j] = D[j, i] = dist_fun(Ai, graphs[[j]])
       }
     }
-  } else {
-    stop("Unknown dist_type: ", dist_type)
+    total_distance = as.vector(D %*% weights)
   }
 
-  total_distance = as.vector(D %*% weights)
   best_index = which.min(total_distance)
+  matrix(U[best_index, ], p, p)
+}
 
-  best_adjacency_matrix = unique_graphs[[best_index]]
-  return(best_adjacency_matrix)
+
+# ---------------------------------------------------------------------------
+# Internal helpers for SID
+# ---------------------------------------------------------------------------
+
+# Strict transitive closure of a 0/1 adjacency matrix (TRUE if a directed path
+# of length >= 1 exists). Used both for reachability and the DAG check.
+.transitive_closure = function(A) {
+  p = nrow(A)
+  P = A > 0
+  if (p > 1L) {
+    for (k in seq_len(ceiling(log2(p)))) {
+      P = P | ((P %*% P) > 0)
+    }
+  }
+  P
+}
+
+# Number of intervention effects i -> (all j) that are wrongly inferred when the
+# true DAG is G and node i is adjusted for parent set Z (logical vector).
+# G   : logical p x p adjacency of the true DAG (G[a, b] = a -> b)
+# R   : reflexive reachability of G (R[a, b] = a is an ancestor of or equal to b)
+# ch  : logical, children of i in G
+# pa  : logical, parents of i in G
+.sid_row = function(G, R, i, ch, pa, Z) {
+  if (identical(Z, pa)) return(0L)          # parent adjustment is always valid
+
+  p = length(Z)
+  anyZ = any(Z)
+
+  # Z claims j is a parent of i (so no effect), but G has i ~> j
+  wrong_zero = Z & R[i, ]
+
+  # "Bad" children of i have a descendant in Z; any j they reach has a
+  # forbidden node in the adjustment set
+  if (anyZ) {
+    hasDescInZ = rowSums(R[, Z, drop = FALSE]) > 0
+    bad = ch & hasDescInZ
+  } else {
+    hasDescInZ = rep(FALSE, p)
+    bad = rep(FALSE, p)
+  }
+  forbidden = if (any(bad)) colSums(R[bad, , drop = FALSE]) > 0 else rep(FALSE, p)
+
+  # d-connection from i given Z in G with edges i -> c removed for children c
+  # that are not "bad" (these can only start causal or blocked paths).
+  Gs = G
+  Gs[i, ch & !bad] = FALSE
+
+  # Bayes-ball (Koller & Friedman, Alg. 3.1), frontier-vectorised.
+  # up   = reached from a child  (trail travelling upward)
+  # down = reached from a parent (trail travelling downward)
+  up_vis = down_vis = rep(FALSE, p)
+  up_new = rep(FALSE, p); up_new[i] = TRUE
+  down_new = rep(FALSE, p)
+  repeat {
+    up_vis = up_vis | up_new
+    down_vis = down_vis | down_new
+    go_parents  = (up_new & !Z) | (down_new & hasDescInZ)
+    go_children = (up_new | down_new) & !Z
+    nu = if (any(go_parents))  as.vector(Gs %*% go_parents)  > 0 else rep(FALSE, p)
+    nd = if (any(go_children)) as.vector(go_children %*% Gs) > 0 else rep(FALSE, p)
+    up_new = nu & !up_vis
+    down_new = nd & !down_vis
+    if (!any(up_new) && !any(down_new)) break
+  }
+  connected = (up_vis | down_vis) & !Z
+
+  wrong = wrong_zero | (!Z & (forbidden | connected))
+  wrong[i] = FALSE
+  sum(wrong)
+}
+
+# Full (asymmetric) SID matrix between the unique graphs stored as rows of U.
+# The work for node i only depends on (true graph, i, parent set of i in the
+# estimate), so each distinct parent set is evaluated once per true graph and
+# then reused for every estimate that shares it.
+sid_matrix = function(U, p) {
+  v = nrow(U)
+  graphs = lapply(seq_len(v), function(k) {
+    A = matrix(U[k, ], p, p) != 0
+    diag(A) = FALSE
+    A
+  })
+
+  closures = lapply(graphs, .transitive_closure)
+  if (any(vapply(closures, function(P) any(diag(P)), logical(1L)))) {
+    stop("SID distance requires all graphs to be DAGs.")
+  }
+
+  # For each node i: the distinct parent sets across all graphs, and which one
+  # each graph uses
+  pa_sets = vector("list", p)
+  pa_id = matrix(0L, v, p)
+  for (i in seq_len(p)) {
+    cols = vapply(graphs, function(A) A[, i], logical(p))   # p x v
+    if (p == 1L) cols = matrix(cols, 1L)
+    key = apply(cols, 2L, function(z) paste(which(z), collapse = ","))
+    uk = unique(key)
+    pa_id[, i] = match(key, uk)
+    pa_sets[[i]] = cols[, match(uk, key), drop = FALSE]
+  }
+
+  S = matrix(0, v, v)
+  for (g in seq_len(v)) {
+    G = graphs[[g]]
+    R = closures[[g]]
+    diag(R) = TRUE
+    row_total = numeric(v)
+    for (i in seq_len(p)) {
+      sets = pa_sets[[i]]
+      ch = G[i, ]
+      pa = G[, i]
+      cnt = vapply(seq_len(ncol(sets)),
+                   function(k) .sid_row(G, R, i, ch, pa, sets[, k]),
+                   integer(1L))
+      row_total = row_total + cnt[pa_id[, i]]
+    }
+    S[g, ] = row_total
+  }
+  S
 }

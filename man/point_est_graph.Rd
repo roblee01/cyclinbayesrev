@@ -20,7 +20,7 @@ One of \code{"shd"}, \code{"sid"}, or \code{"custom"}.}
 \item{dist_fun}{Optional user-supplied distance function used when
 \code{dist_type = "custom"}. Must have signature \code{dist_fun(A, B)},
 where \code{A} and \code{B} are \eqn{p \times p} adjacency matrices and
-return a non negative scalar distance.}
+return a non negative scalar distance. It is assumed to be symmetric.}
 
 \item{burn_in_frac}{Fraction of iterations to discard as burn in (default 0.75).}
 }
@@ -30,20 +30,14 @@ The best possible graph structure found through finding the smallest distance th
 \description{
 Selects a representative graph structure from posterior samples by computing a \strong{weighted medoid} under a chosen distance. Intended for lists of sampled adjacency matrices
 }
-\examples{
-# This example runs the BayesDAG sampler and then selects a point-estimate graph.
-# NOTE: If you want to use dist_type = "sid", you may need extra dependencies.
-# In particular, on some systems the SID package requires Bioconductor RBGL/graph.
-
-\donttest{
-# Install required packages if needed:
-# install.packages(c("remotes", "SID"))
-#
-# If SID complains about missing RBGL/graph, install via Bioconductor:
-# install.packages("BiocManager")
-# BiocManager::install(c("graph", "RBGL"))
+\details{
+SID is not symmetric. For \code{dist_type = "sid"} each candidate graph is
+scored as the estimate against every posterior sample as the truth, i.e. the
+returned graph minimises \eqn{\sum_g w_g \, SID(G_g, \hat G)}, the posterior
+expected SID. SID is computed natively (no dependency on the SID package);
+it reproduces \code{SID::structIntervDist(trueGraph, estGraph)$sid} for DAGs.
 }
-
+\examples{
 N = 300
 num_covariates = 10
 M = 2
@@ -77,10 +71,8 @@ Adjacency_matrix_list <- result_list$Adjacency_matrix_list
 # Best graph structure using SHD
 point_est_graph(Adjacency_matrix_list, dist_type = "shd")
 
-# Best graph structure using SID (requires the SID package and possibly RBGL/graph)
-if (requireNamespace("SID", quietly = TRUE)) {
-  point_est_graph(Adjacency_matrix_list, dist_type = "sid")
-}
+# Best graph structure using SID
+point_est_graph(Adjacency_matrix_list, dist_type = "sid")
 
 # Best graph structure using a custom distance
 custom_edge_mismatch = function(A, B) sum(abs(A - B))
