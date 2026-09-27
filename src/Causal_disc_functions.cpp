@@ -1906,6 +1906,7 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
   arma::mat mu_matrix_list(n_keep,  uM * p, arma::fill::zeros);
   arma::mat tao_matrix_list(n_keep, uM * p, arma::fill::zeros);
   arma::mat pi_matrix_list(n_keep,  uM * p, arma::fill::zeros);
+  arma::vec log_likelihood_list(n_keep, arma::fill::zeros);
 
   if(n_keep == 0)
     Rcpp::warning("No post-annealing iterations: num_iter is too small "
@@ -2568,6 +2569,16 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
     compute_mixture_mean_var(Z_matrix, mu_mat, tao_mat, p, uN, Mu_full, Tao_full);
     accu_log_Tao = arma::accu(arma::log(Tao_full));
 
+    // Log likelihood of the current draw. Reuses the Mu_full/Tao_full and
+    // accu_log_Tao just refreshed above, so no mixture recomputation: only
+    // the (I-B) log-det + quadratic form are evaluated. Stored draws only.
+    if(store_draw){
+      arma::vec ll_parts = Metropolis_hastings_portions_cpp(
+        data_matrix, Adjacency_matrix, Causal_effect_matrix,
+        Mu_full, Tao_full, gamma_1, gamma_result, accu_log_Tao);
+      log_likelihood_list(store_row) = ll_parts[0];
+    }
+
     report_progress(i, n_iter_i, progress_q, "BCD two-phase");
 
     // Lets Ctrl-C / Esc actually stop the chain. Without this a long run is
@@ -2583,6 +2594,7 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
     Named("mu_matrix_list")            = mu_matrix_list,
     Named("tao_matrix_list")           = tao_matrix_list,
     Named("pi_matrix_list")            = pi_matrix_list,
+    Named("log_likelihood_list")       = log_likelihood_list,
     // Row k of every trace above is iteration (first_stored_iteration + k).
     Named("first_stored_iteration")    = anneal_end,
     Named("n_stored")                  = n_keep
