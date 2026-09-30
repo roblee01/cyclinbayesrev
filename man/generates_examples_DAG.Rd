@@ -36,7 +36,7 @@ half of the ordered pairs can be edges in a DAG.}
 
 \item{mag_range}{Length-2 numeric. Range of absolute edge weights.}
 
-\item{prob_positive}{Numeric in \link{0, 1}. Probability an edge weight is positive.}
+\item{prob_positive}{Numeric in \eqn{[0,1]}. Probability an edge weight is positive.}
 
 \item{max_parents}{Integer or NULL. Optional cap on the number of parents
 per node.}
