@@ -38,7 +38,7 @@ picks a value that fits in \eqn{p} vertices given \code{len_range}.}
 
 \item{mag_range}{Length-2 numeric. Range of absolute edge weights.}
 
-\item{prob_positive}{Numeric in \link{0, 1}. Probability an edge weight is positive.}
+\item{prob_positive}{Numeric in \eqn{[0,1]}. Probability an edge weight is positive.}
 
 \item{tol_sing}{Numeric. Required margin on \eqn{\min_m |1 - w_m|}.}
 

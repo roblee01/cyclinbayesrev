@@ -23,7 +23,7 @@
 #'   half of the ordered pairs can be edges in a DAG.
 #' @param seed_input Integer. Random seed, for reproducibility.
 #' @param mag_range Length-2 numeric. Range of absolute edge weights.
-#' @param prob_positive Numeric in [0, 1]. Probability an edge weight is positive.
+#' @param prob_positive Numeric in \eqn{[0,1]}. Probability an edge weight is positive.
 #' @param max_parents Integer or NULL. Optional cap on the number of parents
 #'   per node.
 #' @param error_dist Error distribution: \code{"mixture"} for the normal
