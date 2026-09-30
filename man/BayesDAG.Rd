@@ -19,6 +19,7 @@ BayesDAG(
   alpha = 1,
   M,
   num_iter,
+  burn_in_iterations = 0,
   init_Adjacency = NULL,
   init_Causal_effect = NULL,
   init_mu = NULL,
@@ -67,6 +68,8 @@ Default value is 1}
 
 \item{num_iter}{Integer giving the total number of MCMC iterations for the \code{BayesDAG} algorithm.}
 
+\item{burn_in_iterations}{Integer giving the requested number of initial MCMC iterations to discard. Because \code{BayesDAG} uses an annealing period during early sampling, the effective burn-in is automatically increased to at least 20\\% of \code{num_iter} when a smaller value is supplied. Only post-burn-in posterior draws are returned. Default value is 0.}
+
 \item{init_Adjacency}{Optional \eqn{p \times p} matrix giving the starting adjacency matrix. Entry \eqn{(i,j)} is 1 when \eqn{j} is a parent of \eqn{i}. The diagonal is ignored. Must be acyclic, since this sampler's edge moves assume a DAG. Defaults to NULL, which starts from the prior/random draw.}
 
 \item{init_Causal_effect}{Optional \eqn{p \times p} matrix of starting coefficients. Entries where \code{init_Adjacency} is 0 are set to 0. Defaults to NULL.}
@@ -84,15 +87,16 @@ Default value is 1}
 \item{init_gamma_result}{Optional starting value for the edge-inclusion probability \eqn{\gamma}. Defaults to NULL.}
 }
 \value{
-A list with one row per MCMC iteration in each trace:
+A list containing only retained post-burn-in posterior draws:
 \describe{
-\item{Adjacency_matrix_list}{draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
-\item{Causal_effect_matrix_list}{draws of the coefficient matrix, same layout}
-\item{gamma_list, gamma_1_list}{draws of the edge-inclusion probability and the slab variance}
-\item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{draws of the error-mixture means, variances and weights}
-\item{log_likelihood_list}{log-likelihood at each iteration}
+\item{Adjacency_matrix_list}{retained draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
+\item{Causal_effect_matrix_list}{retained draws of the coefficient matrix, same layout}
+\item{gamma_list, gamma_1_list}{retained draws of the edge-inclusion probability and the slab variance}
+\item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{retained draws of the error-mixture means, variances and weights}
+\item{log_likelihood_list}{log-likelihood values for the retained draws}
+\item{first_stored_iteration}{original MCMC iteration corresponding to the first returned draw}
+\item{n_stored}{number of retained posterior draws}
 }
-Unlike \code{\link{BayesDCG}}, every iteration is stored, so burn-in must be discarded afterwards.
 }
 \description{
 Fits a Bayesian Collapsed Gibbs sampler of the LiNGAM model with non-Gaussian errors modeled
@@ -107,7 +111,8 @@ set.seed(21)
 N <- 250               # sample size
 num_covariates <- 7    # number of features
 M <- 2                 # mixture components for the error distribution
-num_iter <- 5000       # MCMC iterations
+num_iter <- 5000       # total MCMC iterations
+burn_in_iterations <- 1000  # requested burn-in
 
 # True DAG and data
 truth <- generate_dag(num_covariates, edge_prob = 0.15,
@@ -127,12 +132,15 @@ results_lists <- BayesDAG(
   a_gamma_1 = 2, b_gamma_1 = 1,
   alpha = 1,
   M = M,
-  num_iter = num_iter
+  num_iter = num_iter,
+  burn_in_iterations = burn_in_iterations
 )
 
-# This sampler stores every iteration, so discard burn-in yourself
-keep <- seq(floor(num_iter / 2) + 1, num_iter)
-edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list[keep, ]),
+# Returned traces already contain only retained posterior draws
+results_lists$first_stored_iteration
+results_lists$n_stored
+
+edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list),
                     num_covariates, num_covariates)
 estimated_graph <- (edge_prob > 0.5) * 1
 
@@ -147,6 +155,7 @@ last <- nrow(results_lists$Adjacency_matrix_list)
 results_lists2 <- BayesDAG(
   data_matrix,
   M = M, num_iter = num_iter,
+  burn_in_iterations = burn_in_iterations,
   init_Adjacency     = matrix(results_lists$Adjacency_matrix_list[last, ],
                               num_covariates, num_covariates),
   init_Causal_effect = matrix(results_lists$Causal_effect_matrix_list[last, ],

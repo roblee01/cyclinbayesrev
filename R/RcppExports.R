@@ -45,8 +45,8 @@ score_state_v2_cpp <- function(data_matrix, Adjacency_matrix, Causal_effect_matr
     .Call(`_cyclinbayesrev_score_state_cpp`, data_matrix, Adjacency_matrix, Causal_effect_matrix, Z_matrix, mu_mat, tao_mat, gamma_1, gamma_result)
 }
 
-BayesSCLingam_cpp <- function(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, init_Adjacency = NULL, init_Causal_effect = NULL, init_mu = NULL, init_tao = NULL, init_pi = NULL, init_Z = NULL, init_gamma_1 = NULL, init_gamma_result = NULL) {
-    .Call(`_cyclinbayesrev_BayesSCLingam_cpp`, data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result)
+BayesSCLingam_cpp <- function(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, burn_in_iterations = 0, init_Adjacency = NULL, init_Causal_effect = NULL, init_mu = NULL, init_tao = NULL, init_pi = NULL, init_Z = NULL, init_gamma_1 = NULL, init_gamma_result = NULL) {
+    .Call(`_cyclinbayesrev_BayesSCLingam_cpp`, data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, burn_in_iterations, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result)
 }
 
 project_to_disjoint_cycle_space_cpp <- function(Adj, B, max_steps = 10000L, stability_target = 0.95, verbose = TRUE) {

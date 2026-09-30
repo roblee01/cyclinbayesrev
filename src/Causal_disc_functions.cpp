@@ -592,6 +592,7 @@ List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu,
                        double a_gamma, double b_gamma, double a_tao, double b_tao,
                        double a_og_tao, double b_og_tao, double a_gamma_1, double b_gamma_1,
                        double alpha, double M, double num_iter,
+                       double burn_in_iterations = 0,
                        Rcpp::Nullable<Rcpp::NumericMatrix> init_Adjacency    = R_NilValue,
                        Rcpp::Nullable<Rcpp::NumericMatrix> init_Causal_effect = R_NilValue,
                        Rcpp::Nullable<Rcpp::NumericMatrix> init_mu           = R_NilValue,
@@ -1066,18 +1067,64 @@ List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu,
       Mu_full_final, Tao_full_final, gamma_1, gamma_result);
     log_likelihood_list(i - 1) = log_parts[0];
 
-    report_progress(i, static_cast<int>(num_iter), progress_q, "BayesSCLingam");
+    report_progress(i, static_cast<int>(num_iter), progress_q, "BayesDAG");
   }
 
+  // --- Keep only post-burn-in draws --------------------------------------
+  // The sampler stored every iteration above (rows 0 .. num_iter-1, where row
+  // i-1 is iteration i). We now discard the first burn_in_iterations rows so
+  // every returned row is a post-burn-in draw. Row k of each returned trace
+  // is iteration (first_stored_iteration + k), first_stored_iteration =
+  // burn_in_iterations + 1. burn_in_iterations = 0 keeps everything.
+  double bi_d = (burn_in_iterations > 0.0) ? burn_in_iterations : 0.0;
+
+  // The edge-inclusion prior is annealed by (1 + exp(-35*i/num_iter)): it starts
+  // at 2x strength and decays to 1x. The extra factor is negligible after about
+  // i/num_iter = 0.20 (exp(-35*0.20) ~ 9e-4). Draws taken before the anneal
+  // decays are NOT from the target posterior, so they are never returned as
+  // posterior samples. The effective burn-in is therefore at least the end of
+  // the annealing window: a user burn-in past it is honored as-is; a smaller
+  // one is raised to it. Every returned row is thus a valid posterior draw.
+  const double anneal_done_frac = 0.20;
+  const double anneal_done_iter = anneal_done_frac * num_iter;
+  const double requested_burn_in = bi_d;
+  const bool   burn_in_was_raised = (bi_d < anneal_done_iter);
+  if(burn_in_was_raised) bi_d = anneal_done_iter;
+
+  const arma::uword bi = static_cast<arma::uword>(bi_d);
+  const arma::uword total = static_cast<arma::uword>(num_iter);
+  if(bi >= total)
+    Rcpp::stop("burn_in_iterations must be smaller than num_iter, "
+               "otherwise no post-burn-in draws are stored.");
+
+  // Tell the user plainly (with numbers) if we raised the burn-in, so a smaller
+  // returned sample count is never a surprise. n_stored / first_stored_iteration
+  // are also returned so the effective values can always be checked afterward.
+  if(burn_in_was_raised){
+    Rcpp::Rcout << "Note: burn_in_iterations (" << static_cast<long>(requested_burn_in)
+                << ") was inside the prior-annealing window and has been raised to "
+                << static_cast<long>(bi_d) << " (0.2 * num_iter) so that only\n"
+                << "valid post-annealing posterior draws are returned. Stored draws: "
+                << (total - bi) << " (iterations " << (bi + 1) << " to " << total << ").\n"
+                << "To keep more draws, increase num_iter or set burn_in_iterations "
+                << ">= 0.2 * num_iter.\n";
+    Rcpp::Rcout.flush();
+  }
+  const arma::uword lo = bi;                 // first kept row index (0-based)
+  const arma::uword hi = total - 1;          // last kept row index
+  const int n_keep     = static_cast<int>(total - bi);
+
   return List::create(
-    Named("Adjacency_matrix_list")     = Adjacency_matrix_list,
-    Named("Causal_effect_matrix_list") = Causal_effect_matrix_list,
-    Named("gamma_list")                = gamma_list,
-    Named("gamma_1_list")              = gamma_1_list,
-    Named("mu_matrix_list")            = mu_matrix_list,
-    Named("tao_matrix_list")           = tao_matrix_list,
-    Named("pi_matrix_list")            = pi_matrix_list,
-    Named("log_likelihood_list")       = log_likelihood_list
+    Named("Adjacency_matrix_list")     = Adjacency_matrix_list.rows(lo, hi),
+    Named("Causal_effect_matrix_list") = Causal_effect_matrix_list.rows(lo, hi),
+    Named("gamma_list")                = gamma_list.subvec(lo, hi),
+    Named("gamma_1_list")              = gamma_1_list.subvec(lo, hi),
+    Named("mu_matrix_list")            = mu_matrix_list.rows(lo, hi),
+    Named("tao_matrix_list")           = tao_matrix_list.rows(lo, hi),
+    Named("pi_matrix_list")            = pi_matrix_list.rows(lo, hi),
+    Named("log_likelihood_list")       = log_likelihood_list.subvec(lo, hi),
+    Named("first_stored_iteration")    = static_cast<int>(bi + 1),
+    Named("n_stored")                  = n_keep
   );
 }
 
@@ -2579,7 +2626,7 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
       log_likelihood_list(store_row) = ll_parts[0];
     }
 
-    report_progress(i, n_iter_i, progress_q, "BCD two-phase");
+    report_progress(i, n_iter_i, progress_q, "BayesDCG two-phase");
 
     // Lets Ctrl-C / Esc actually stop the chain. Without this a long run is
     // uninterruptible from the R console.

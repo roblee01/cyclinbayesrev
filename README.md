@@ -34,13 +34,13 @@ remotes:
 
 ``` r
 #install.packages("remotes")
-#remotes::install_github("roblee01/cyclinbayes")
+#remotes::install_github("roblee01/cyclinbayesrev")
 ```
 
 Then load the package:
 
 ``` r
-library(cyclinbayes)
+library(cyclinbayesrev)
 library(ggplot2)
 #> Warning: package 'ggplot2' was built under R version 4.5.2
 library(igraph)
@@ -63,83 +63,89 @@ library(igraph)
 
 Below is a simple example demonstrating how to use the Bayesian LiNGAM
 (DAG) sampler. Let $p$ denote the number of variables, $N$ the sample
-size, and `num_iter` be the number of iterations of the sampler. Let
-$i \in \lbrace 1,\ldots,p \rbrace$ index variables and
-$q \in \lbrace 1,\ldots,N \rbrace$ index samples. We generate error
-terms from a finite Gaussian mixture model:
+size, and `num_iter` the number of MCMC iterations. Let
+$i \in \{1,\ldots,p\}$ index variables and $q \in \{1,\ldots,N\}$ index
+observations.
 
-$$
-\epsilon_i^{(q)} \sim \sum_{k=1}^{M} \pi_{ik}\, N(\mu_{ik}, \tau_{ik}),
-$$
+We generate structural errors from a finite Gaussian mixture model,
 
-with mixture components
+$$\epsilon_i^{(q)}
+\sim
+\sum_{k=1}^{M}
+\pi_{ik}\,N(\mu_{ik},\tau_{ik}),$$
 
-$$
-M = 2, \quad 
-(\mu_{i1}, \mu_{i2}) = (-0.5, 0.5), \quad
-(\tau_{i1}, \tau_{i2}) = (0.1, 0.3), \quad
-(\pi_{i1}, \pi_{i2}) = (0.5, 0.5).
-$$
+with
 
-We generate a sparse causal effect matrix $B$ by sampling edges
-independently with probability $\Delta = 0.9$ until the adjacency matrix
-is acyclic.
+$$M=2,\qquad
+(\mu_{i1},\mu_{i2})=(-0.5,0.5),\qquad
+(\tau_{i1},\tau_{i2})=(0.1,0.3),\qquad
+(\pi_{i1},\pi_{i2})=(0.5,0.5).$$
 
-Given $B$ and the error matrix $\epsilon$, the data are generated via
+We generate a sparse DAG by including each candidate directed edge with
+probability $1-\Delta=0.1$, where $\Delta=0.9$, while enforcing
+acyclicity. For each included edge $j\to i$, the corresponding nonzero
+causal-effect coefficient is generated according to
 
-$$
-Y = (I - B)^{-1}\epsilon,
-$$
+$$|B_{ij}| \sim \mathrm{Unif}(0.4,0.9),$$
+
+with its sign chosen independently to be positive or negative with equal
+probability. For excluded edges, $B_{ij}=0$.
+
+Given the causal-effect matrix $B$ and structural error matrix
+$\epsilon$, the observed data are generated from
+
+$$Y=(I-B)^{-1}\epsilon,$$
 
 where the $i$-th row of $Y$ corresponds to
 
-$$
-(Y_i^{(1)}, \ldots, Y_i^{(N)})^\top.
-$$
+$$(Y_i^{(1)},\ldots,Y_i^{(N)})^\top.$$
 
 ``` r
-#set.seed for reproducibility
-set.seed(21)
-
-
 #######################################
 # Simulation and MCMC settings
 #######################################
-N = 300    # sample size
-num_covariates = 10     # number of features
-M = 2      # number of mixture components
-num_iter = 1000  # number of MCMC iterations
+N = 200 # Sample size for the test data
+num_covariates = 10 # Number of features for test data
+M = 5 # Number of finite clusters for mixed normal in likelihood
+num_iter = 100000 # Total number of MCMC iterations
+burn_in_iterations = 20000 # Discard initial draws; retain post-burn-in posterior samples
 
 #######################################
 # Hyperparameter setup
 #######################################
 params = list(
-  a_mu = 0,
-  b_mu  = 2,
-  a_gamma = 0.5,
-  b_gamma = 0.5,
+  a_mu      = 0,
+  b_mu      = 2,
+  a_gamma   = 0.5,
+  b_gamma   = 0.5,
   a_gamma_1 = 2,
   b_gamma_1 = 1,
-  a_tao = 2,
-  b_tao = 1,
   a_og_tao = 0.01,
   b_og_tao = 0.01,
-  alpha = 1
+  a_tao     = 2,
+  b_tao     = 1,
+  alpha     = 1
 )
 
 #######################################
-# Generate DAG example data
+# Generate DAG Example
 #######################################
 example_list = generates_examples_DAG(
   num_covariates = num_covariates,
-  N = N,
-  M = M,
-  prob_sparsity = 0.9,
-  seed_input = 21
+  N              = N,
+  M_input        = 2,        # components used to GENERATE the errors
+  prob_sparsity  = 0.90,     # = edge_prob 0.10
+  seed_input     = 21, # the script's set.seed(20 + sim)
+  mag_range      = c(0.4, 0.9),
+  prob_positive  = 0.5,
+  seed_structure = 1,        # dag_structure(seed = 1)
+  seed_weights   = 20        # dag_weights(seed = 20)
 )
 
 data_matrix = example_list$data_matrix
 Adjacency_matrix_true = example_list$Adjacency_matrix_true
+Causal_effect_matrix_true = example_list$Causal_effect_matrix_true
+Z_matrix_true = example_list$Z_matrix_true
 ```
 
 Before examining posterior summaries, it is helpful to visualize the
@@ -172,8 +178,17 @@ plot(
 <img src="man/figures/README-unnamed-chunk-5-1.png" alt="" width="100%" />
 
 With the simulated dataset and prior hyperparameters specified above, we
-fit the Bayesian LiNGAM model using `BayesDAG().` Each MCMC iteration
-$$t$$ produces:
+fit the Bayesian LiNGAM model using `BayesDAG().` The sampler runs for
+`num_iter` iterations, but only post-burn-in draws are returned for
+posterior analysis. The `burn_in_iterations` argument specifies how many
+initial iterations are discarded. Because the DAG sampler uses an
+annealing contribution during the early iterations, the implementation
+ensures that the effective burn-in is at least 20% of `num_iter`; if a
+smaller value is supplied, it is automatically increased to the end of
+this annealing window. Thus, the returned samples correspond only to the
+post-annealing posterior-sampling phase.
+
+For each retained iteration $t$, the output includes:
 
 - Adjacency matrix $E^{(t)}\in \{0,1\}^{p\times p}$
 - Causal effect matrix $B^{(t)}\in \mathbb{R}^{p\times p}$
@@ -182,53 +197,92 @@ $$t$$ produces:
   $\mu^{(t)},\tau^{(t)}\in \mathbb{R}^{p\times M}$, where column $k$
   corresponds to mixture component $k$).
 
-For posterior summaries, each iteration’s matrices are flattened
-(vectorized) into a single parameter vector. Concretely, we apply
-$vec(\cdot)$ to stack all entries of $E^{(t)}$, $B^{(t)}$, $\mu^{(t)}$,
-and $\tau^{(t)}$, and stack these vectors over iterations to form a
-matrix of samples where the rows are iterations and columns correspond
-to fixed matrix entries (one column for $B_{ij}$ or $\mu_{ik}$). This
-makes element wise quantities, edge probabilities, HPD/credible
-intervals, and other summaries straightforward to compute.
+For posterior summaries, the retained matrices are flattened
+(vectorized) into parameter vectors. Rows correspond to retained
+posterior draws and columns correspond to fixed matrix entries (for
+example, one column for $B_{ij}$ or $\mu_{ik}$). This makes edge
+probabilities, HPD/credible intervals, and other posterior summaries
+straightforward to compute.
 
 ``` r
 #######################################
-# Run Bayesian LiNGAM (DAG) sampler
+# Parameter Initialization
 #######################################
-results_lists = BayesDAG(
-  data_matrix,
-  params$a_mu,
-  params$b_mu,
-  params$a_gamma,
-  params$b_gamma,
-  params$a_tao,
-  params$b_tao,
-  params$a_og_tao,
-  params$b_og_tao,
-  params$a_gamma_1,
-  params$b_gamma_1,
-  params$alpha,
-  M,
-  num_iter
+B_seed = directlingam_seed(data_matrix)
+seed_edge_threshold = 0.05   # drop |seed coef| below this
+seed_rho_target = 0.95   # rescale if spectral radius exceeds this
+seed_settle_sweeps = 30     # mixture Gibbs sweeps before handing off
+#######################################
+# Initialization
+#######################################  
+init_state = init_from_seed(
+  B_seed, data_matrix, N, num_covariates, M,
+  params$a_mu, params$b_mu, params$a_tao, params$b_tao, params$alpha,
+  params$a_gamma, params$b_gamma, params$a_gamma_1, params$b_gamma_1,
+  edge_threshold = seed_edge_threshold,
+  rho_target     = seed_rho_target,
+  settle_sweeps  = seed_settle_sweeps
 )
+#> init_from_seed: edges 9  rho 0.000  gamma_1 0.526  gamma_result 0.104  log-post 46.7
+#######################################
+# Run Bayesian DAG Sampler
+#######################################
+
+results_list = BayesDAG(
+      data_matrix,
+      params$a_mu, params$b_mu,
+      params$a_gamma, params$b_gamma,
+      params$a_tao, params$b_tao,
+      params$a_og_tao, params$b_og_tao,
+      params$a_gamma_1, params$b_gamma_1,
+      params$alpha,
+      M,
+      num_iter,
+      burn_in_iterations = burn_in_iterations,
+      init_Adjacency     = init_state$Adjacency_matrix,
+      init_Causal_effect = init_state$Causal_effect_matrix,
+      init_mu            = init_state$mu_mat,
+      init_tao           = init_state$tao_mat,
+      init_pi            = init_state$pi_mat,
+      init_Z             = init_state$Z_matrix,
+      init_gamma_1       = init_state$gamma_1,
+      init_gamma_result  = init_state$gamma_result
+    )
+#> [BayesDAG] 25%  (25000/100000)
+#> [BayesDAG] 50%  (50000/100000)
+#> [BayesDAG] 75%  (75000/100000)
+#> [BayesDAG] done -- 100000 iterations
 
 #######################################
-# Extract key posterior summaries
+# Extract posterior outputs
 #######################################
-log_likelihood_list = results_lists$log_likelihood_list
-Adjacency_matrix_list = results_lists$Adjacency_matrix_list 
-Causal_effect_matrix_list = results_lists$Causal_effect_matrix_list
-gamma_list = results_lists$gamma_list
-gamma_1_list = results_lists$gamma_1_list
-mu_matrix_list = results_lists$mu_matrix_list
-tao_matrix_list = results_lists$tao_matrix_list
-pi_matrix_list = results_lists$pi_matrix_list
+log_likelihood_list = results_list$log_likelihood_list
+Adjacency_matrix_list = results_list$Adjacency_matrix_list 
+Causal_effect_matrix_list = results_list$Causal_effect_matrix_list
+gamma_list = results_list$gamma_list
+gamma_1_list = results_list$gamma_1_list
+mu_matrix_list = results_list$mu_matrix_list
+tao_matrix_list = results_list$tao_matrix_list
+pi_matrix_list = results_list$pi_matrix_list
+
+# Information about the retained posterior sample
+first_stored_iteration = results_list$first_stored_iteration
+posterior_sample_length = results_list$n_stored
+
+first_stored_iteration
+#> [1] 20001
+posterior_sample_length
+#> [1] 80000
 ```
+
+All downstream posterior summaries use these retained post-burn-in
+draws. In this example, `burn_in_iterations = 20000`, so the returned
+posterior samples begin at iteration 20,001 and contain 80,000 draws.
 
 To obtain a representative estimate of the graph structure, we use the
 function `point_est_graph(),` which selects the posterior weighted
 medoid, the graph that minimizes the weight distance to all other
-sampled adjacency matrices. Users may select one of the build in
+sampled adjacency matrices. Users may select one of the built in
 distances or supply their own custom functions. The available distance
 metrics are:
 
@@ -258,16 +312,16 @@ return a non negative scalar distance.
 Adjacency_matrix_shd = point_est_graph(Adjacency_matrix_list, dist_type = 'shd')
 Adjacency_matrix_shd
 #>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-#>  [1,]    0    0    1    0    0    0    0    0    0     0
-#>  [2,]    0    0    0    0    0    0    0    0    0     1
-#>  [3,]    0    0    0    0    0    0    0    0    0     0
+#>  [1,]    0    0    0    0    0    0    0    0    0     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    1    0    1    0    0    0    0    0     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    1    1    0    0    0    0    0    0    0     0
-#>  [6,]    0    0    0    0    0    0    0    0    0     0
-#>  [7,]    0    0    0    1    0    0    0    0    0     1
-#>  [8,]    0    0    0    0    0    1    0    0    0     0
-#>  [9,]    0    0    0    0    0    1    0    0    0     0
-#> [10,]    0    0    0    0    0    0    0    1    0     0
+#>  [5,]    1    0    0    0    0    0    0    0    0     0
+#>  [6,]    0    1    0    0    0    0    0    0    0     0
+#>  [7,]    0    0    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    1    0    0    0    0    0     0
+#>  [9,]    0    0    0    0    0    0    0    0    0     0
+#> [10,]    0    0    0    1    1    0    1    0    0     0
 ```
 
 ``` r
@@ -281,16 +335,16 @@ if (requireNamespace("SID", quietly = TRUE)) {
   message("SID not installed. Install SID (and possibly Bioconductor graph/RBGL) to run SID.")
 }
 #>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-#>  [1,]    0    0    1    0    0    0    0    0    0     0
-#>  [2,]    0    0    0    0    0    0    0    0    0     1
-#>  [3,]    0    0    0    0    0    0    0    0    0     0
+#>  [1,]    0    0    0    0    0    0    0    0    0     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    1    0    1    0    0    0    0    1     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    1    1    0    0    0    0    0    0    0     0
-#>  [6,]    0    0    0    0    0    0    0    0    0     0
-#>  [7,]    0    0    0    1    0    0    0    0    0     1
-#>  [8,]    0    0    0    0    0    1    0    0    0     0
-#>  [9,]    0    0    0    0    0    1    0    0    0     0
-#> [10,]    0    0    0    0    0    0    0    1    0     0
+#>  [5,]    1    0    0    0    0    0    0    0    1     0
+#>  [6,]    0    1    0    0    0    0    0    0    0     0
+#>  [7,]    0    0    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    1    0    0    0    0    0     0
+#>  [9,]    0    0    0    0    0    0    0    0    0     0
+#> [10,]    1    0    0    1    1    0    1    0    0     0
 ```
 
 As an example for a custom function, we could count the total number of
@@ -304,34 +358,35 @@ custom_edge_mismatch = function(A, B) {
 Adjacency_matrix_custom = point_est_graph(Adjacency_matrix_list, dist_type = 'custom', dist_fun = custom_edge_mismatch)
 Adjacency_matrix_custom
 #>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-#>  [1,]    0    0    1    0    0    0    0    0    0     0
-#>  [2,]    0    0    0    0    0    0    0    0    0     1
-#>  [3,]    0    0    0    0    0    0    0    0    0     0
+#>  [1,]    0    0    0    0    0    0    0    0    0     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    1    0    1    0    0    0    0    0     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    1    1    0    0    0    0    0    0    0     0
-#>  [6,]    0    0    0    0    0    0    0    0    0     0
-#>  [7,]    0    0    0    1    0    0    0    0    0     1
-#>  [8,]    0    0    0    0    0    1    0    0    0     0
-#>  [9,]    0    0    0    0    0    1    0    0    0     0
-#> [10,]    0    0    0    0    0    0    0    1    0     0
+#>  [5,]    1    0    0    0    0    0    0    0    0     0
+#>  [6,]    0    1    0    0    0    0    0    0    0     0
+#>  [7,]    0    0    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    1    0    0    0    0    0     0
+#>  [9,]    0    0    0    0    0    0    0    0    0     0
+#> [10,]    0    0    0    1    1    0    1    0    0     0
 ```
 
-We observe that the three structures selected using different distance
-metrics are all identical.
+We observe that the structures selected using SHD and the custom edge
+mismatch distance are identical, whereas the structure selected using
+SID differs.
 
 ``` r
 Adjacency_matrix_true
 #>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-#>  [1,]    0    0    1    0    0    0    0    0    0     0
-#>  [2,]    0    0    0    0    0    0    0    0    0     1
-#>  [3,]    0    0    0    0    0    0    0    0    0     0
+#>  [1,]    0    0    0    0    0    0    0    0    0     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    1    0    1    0    0    0    0    0     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    1    1    0    0    0    0    0    0    0     0
-#>  [6,]    0    0    0    0    0    0    0    0    0     0
-#>  [7,]    0    0    0    1    0    0    0    0    0     1
-#>  [8,]    0    0    0    0    0    1    0    0    0     0
-#>  [9,]    0    0    0    0    0    1    0    0    0     0
-#> [10,]    0    0    0    0    0    0    0    1    0     0
+#>  [5,]    1    0    0    0    0    0    0    0    0     0
+#>  [6,]    0    1    0    0    0    0    0    0    0     0
+#>  [7,]    0    0    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    1    0    0    0    0    0     0
+#>  [9,]    0    0    0    0    0    0    0    0    0     0
+#> [10,]    0    0    0    1    1    0    1    0    0     0
 ```
 
 In addition to choosing the best possible graphs through distance based
@@ -355,66 +410,165 @@ Since the value is at 1, this indicates that the sampler visited the
 true graph structure repeatedly on every possible posterior graph
 structure.
 
-To assess whether the sampler has mixed well and is exploring the
-parameter space adequately, we inspect the trace plot for the log
-likelihood. The log likelihood trace is especially useful, as it
-reflects convergence of the entire parameter configuration rather than a
-single component. Stable behavior in both the parameter traces and the
-log likelihood provides strong evidence that the chain has reached
-stationarity. The trace plot for the log likelihood is plotted below:
+To inspect sampler behavior, we plot the log likelihood over the
+retained posterior-sampling phase. Because `BayesDAG()` now returns only
+post-burn-in draws, no additional indexing by `num_iter` is needed.
 
 ``` r
-plot(log_likelihood_list[,1][(0.75*num_iter):num_iter], type='l', xlab = 'Iterations', ylab = 'log likelihood values')
+posterior_iterations = seq(
+  from = first_stored_iteration,
+  length.out = posterior_sample_length
+)
+
+plot(
+  posterior_iterations,
+  log_likelihood_list,
+  type = 'l',
+  xlab = 'Iterations',
+  ylab = 'log likelihood values'
+)
 ```
 
 <img src="man/figures/README-unnamed-chunk-12-1.png" alt="" width="100%" />
 
-As seen overall, the log_likelihoods stay in the same general area
-indicating the sampler has reached a stationary regime, indicating
-posterior summaries for the other parameters are from a well converged
-chain. In order to get the interval estimates of the parameters, we
-summarize it using the `posterior_interval_est,` which computes HPD and
-equal tailed credible intervals column wise, returning interval
-estimates for every underlying matrix element. To illustrate, we examine
-posterior uncertainty in the causal effect coefficients. The figure
-below displays the HPD and credible intervals for all nonzero entries of
-$B$, with the dashed red line indicating the true weight. The credible
-intervals tightly capture the ground truth values, and the HPD estimates
-lie close to the reference line, demonstrating that the method recovers
-both causal strength and graph structure accurately.
+As shown above, the log-likelihood remains within a relatively stable
+range during the retained posterior-sampling phase, providing empirical
+evidence that the sampler has entered a stable sampling regime. The
+graph summaries and interval estimates below are therefore computed
+directly from the post-burn-in samples returned by `BayesDAG()`.
+
+Posterior interval estimates are obtained using , which computes highest
+posterior density (HPD) intervals and equal-tailed credible intervals
+column-wise for each element of the sampled parameter matrices. To
+illustrate posterior uncertainty in the causal-effect coefficients, we
+examine the nonzero entries of the true causal-effect matrix $B$.
+
+The figures below display the posterior estimates together with their
+95% HPD and equal-tailed credible intervals. For each causal edge, the
+red $\times$ marks the true value of the corresponding causal effect
+coefficient, while the black point and vertical interval summarize the
+posterior estimate and uncertainty. This allows each estimated effect to
+be compared directly with its ground-truth value. Overall, the posterior
+estimates lie close to the true effects, and the intervals generally
+cover the corresponding ground-truth values, indicating accurate
+recovery of the causal-effect magnitudes in this example.
 
 ``` r
-Causal_effect_matrix_summary = posterior_interval_est(Causal_effect_matrix_list, level = 0.95)
+#######################################
+# Posterior intervals
+#######################################
+
+Causal_effect_matrix_summary =
+  posterior_interval_est(Causal_effect_matrix_list, level = 0.95)
+
 hpd_matrix_acyclic = Causal_effect_matrix_summary$hpd_matrix
-ci_matrix_acyclic = Causal_effect_matrix_summary$ci_matrix
+ci_matrix_acyclic  = Causal_effect_matrix_summary$ci_matrix
+
 
 #######################################
-# Extracting nonzero HPD intervals
+# True nonzero causal effects
 #######################################
-par(mfrow=c(2,1))
 
-nonzero_cols = which(colSums(hpd_matrix_acyclic) != 0)
-num_non_zero_coef = length(nonzero_cols)
-data_1 = data.frame(cbind(1:num_non_zero_coef,t(hpd_matrix_acyclic[,which(colSums(hpd_matrix_acyclic)!=0)])))
+# R vectorizes matrices column-by-column
+true_vec = as.vector(Causal_effect_matrix_true)
 
-nonzero_cols = which(colSums(hpd_matrix_acyclic) != 0)
+# Indices of all truly nonzero causal effects
+true_idx = which(true_vec != 0)
 
-# subset and transpose so each row = coefficient
-hpd_sub = t(hpd_matrix_acyclic[, nonzero_cols, drop = FALSE])
-colnames(hpd_sub) = c("lower", "upper")  # row1 = lower, row2 = upper
+# Convert vector indices back to matrix coordinates
+coords = arrayInd(
+  true_idx,
+  .dim = dim(Causal_effect_matrix_true)
+)
 
-data_1 = as.data.frame(hpd_sub)
-data_1$x = factor(seq_len(nrow(data_1)))
+# Convention: B_ij is the effect j -> i
+true_effects_df = data.frame(
+  coef_index = true_idx,
+  child  = coords[, 1],
+  parent = coords[, 2],
+  truth  = true_vec[true_idx]
+)
 
-data_1$mid = (data_1$lower + data_1$upper) / 2
+true_effects_df$edge = paste0(
+  true_effects_df$parent,
+  " -> ",
+  true_effects_df$child
+)
+
+#true_effects_df
 
 
-ggplot(data_1, aes(x = x, y = mid)) +
+#######################################
+# Check dimensions before matching
+#######################################
+
+if (ncol(hpd_matrix_acyclic) != length(true_vec)) {
+  stop("HPD matrix ordering/dimensions do not match Causal_effect_matrix_true.")
+}
+
+if (nrow(ci_matrix_acyclic) != length(true_vec)) {
+  stop("CI matrix ordering/dimensions do not match Causal_effect_matrix_true.")
+}
+
+
+#######################################
+# HPD intervals for TRUE causal effects
+#######################################
+
+hpd_sub = t(
+  hpd_matrix_acyclic[, true_idx, drop = FALSE]
+)
+
+colnames(hpd_sub) = c("lower", "upper")
+
+data_hpd = data.frame(
+  edge  = true_effects_df$edge,
+  truth = true_effects_df$truth,
+  lower = hpd_sub[, "lower"],
+  upper = hpd_sub[, "upper"]
+)
+
+# Midpoint of HPD interval
+data_hpd$estimate =
+  (data_hpd$lower + data_hpd$upper) / 2
+
+# Keep edge order fixed
+data_hpd$edge =
+  factor(data_hpd$edge, levels = data_hpd$edge)
+
+
+#######################################
+# Plot HPD intervals
+#######################################
+
+ggplot(data_hpd, aes(x = edge, y = estimate)) +
+  geom_errorbar(
+    aes(ymin = lower, ymax = upper),
+    width = 0.2
+  ) +
   geom_point(size = 3) +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  labs(y = "Causal Weight Estimate with HPD Interval", x = "Nonzero causal effect coefficient (index)") +
-  theme_minimal()
+
+  # True causal effect
+  geom_point(
+    aes(y = truth),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% HPD Intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
 ```
 
 <img src="man/figures/README-unnamed-chunk-13-1.png" alt="" width="100%" />
@@ -423,75 +577,313 @@ ggplot(data_1, aes(x = x, y = mid)) +
 
 
 #######################################
-# Extracting nonzero Credible intervals
+# 95% credible intervals for TRUE effects
 #######################################
-data_2 = data.frame(ci_matrix_acyclic[which(rowSums(ci_matrix_acyclic)!=0),])
-x = factor(1:nrow(data_2))
-data_2 = cbind(x,data_2)
 
-ggplot(data_2, aes(x = x, y = X2)) +
+ci_sub =
+  ci_matrix_acyclic[true_idx, , drop = FALSE]
+
+data_ci = data.frame(
+  edge     = true_effects_df$edge,
+  truth    = true_effects_df$truth,
+  lower    = ci_sub[, 1],
+  estimate = ci_sub[, 2],
+  upper    = ci_sub[, 3]
+)
+
+data_ci$edge =
+  factor(data_ci$edge, levels = data_ci$edge)
+
+
+#######################################
+# Plot credible intervals
+#######################################
+
+ggplot(data_ci, aes(x = edge, y = estimate)) +
+  geom_errorbar(
+    aes(ymin = lower, ymax = upper),
+    width = 0.2
+  ) +
   geom_point(size = 3) +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
-  geom_errorbar(aes(ymin = X1, ymax = X3), width = 0.2) +  # just X1/X3
-  labs(y = "Causal Weight Estimate with 95% CI", x = "Nonzero causal effect coefficient (index)") +
-  theme_minimal()
+
+  # True causal effect
+  geom_point(
+    aes(y = truth),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% Credible Intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
 ```
 
 <img src="man/figures/README-unnamed-chunk-13-2.png" alt="" width="100%" />
 
+``` r
+
+
+#######################################
+# Coverage
+#######################################
+
+data_hpd$covered =
+  data_hpd$truth >= data_hpd$lower &
+  data_hpd$truth <= data_hpd$upper
+
+data_ci$covered =
+  data_ci$truth >= data_ci$lower &
+  data_ci$truth <= data_ci$upper
+
+cat(
+  "HPD coverage:",
+  sum(data_hpd$covered),
+  "out of",
+  nrow(data_hpd),
+  "\n"
+)
+#> HPD coverage: 9 out of 9
+
+cat(
+  "Credible interval coverage:",
+  sum(data_ci$covered),
+  "out of",
+  nrow(data_ci),
+  "\n"
+)
+#> Credible interval coverage: 9 out of 9
+```
+
+The figures compare posterior estimates of the nonzero causal effect
+coefficients with their true simulated values. Black points and vertical
+lines represent the posterior estimates and corresponding 95% intervals,
+while red crosses indicate the true causal effects.
+
+In this acyclic example, the posterior estimates closely match the true
+causal-effect coefficients across all true edges. The 95% HPD and
+equal-tailed credible intervals contain, or closely surround, the
+corresponding true values, indicating accurate recovery of both the
+direction and magnitude of the nonzero causal effects. The HPD and equal
+tailed intervals are also very similar, suggesting relatively well
+concentrated posterior distributions for the estimated effects in this
+example.
+
 ## Cyclic (DCG) Example
 
-Finally, to illustrate the cyclic Bayesian sampler, we first generate an
-adjacency matrix that contains at least one directed cycle. To ensure
-that `I - B` is invertible and the linear system is stable, we control
-the spectral radius of the causal effect matrix `B`.
+Finally, to illustrate the cyclic Bayesian sampler, we generate a
+directed cyclic graph (DCG) containing at least one directed cycle. The
+graph is generated under the disjoint-cycle restriction used by
+`BayesDCG`, so that no two directed cycles share a node.
 
-We compute the spectral radius as `ρ(B) = max{|λ|: λ ∈ eig(B)}.` If
-`ρ(B) ≥ 0.95,` we rescale the matrix as `B = (0.95 / ρ(B)) * B,` which
-guarantees that the spectral radius is strictly below `0.95.`
+For each included edge $j \to i$, the corresponding nonzero
+causal-effect coefficient is generated according to
 
-This rescaling step improves numerical stability of the likelihood while
-preserving the relative pattern of causal effects encoded in `B.`
+$$|B_{ij}| \sim \mathrm{Unif}(0.4,0.9),$$
+
+with its sign chosen independently to be positive or negative with equal
+probability. For excluded edges, $B_{ij}=0$.
+
+Because feedback is present in a cyclic model, we additionally require
+the causal-effect matrix to satisfy the stability condition
+
+<div style="text-align: center; margin: 1em 0;">
+
+ρ(B) = max { \|λ\| : λ ∈ eig(B) } \< 1.
+
+</div>
+
+Here, ρ(B) denotes the spectral radius of the causal-effect matrix.
+Given the causal-effect matrix $B$ and structural error matrix
+$\epsilon$, the observed data are generated from
+
+$$Y = (I-B)^{-1}\epsilon.$$
+
+The resulting data therefore arise from a stable linear non-Gaussian
+cyclic structural equation model with disjoint directed cycles.
 
 ``` r
 #######################################
 # Simulation and MCMC settings
 #######################################
-N = 250 # Sample size for the test data
-num_covariates = 7 # Number of features for test data
-M = 2 # Number of finite clusters for mixed normal in likelihood
-num_iter = 2000 # Number of iterations MCMC runs
+
+N = 200
+num_covariates = 10
+M = 5
+num_iter = 100000
+burn_in_iterations = 70000
+
 
 #######################################
 # Hyperparameter setup
 #######################################
+
 params = list(
   a_mu      = 0,
   b_mu      = 2,
-  a_gamma   = 2,
-  b_gamma   = 1,
-  a_gamma_1 = 2,
-  b_gamma_1 = 1,
+  a_gamma   = 1,
+  b_gamma   = 20,
+  a_gamma_1 = 0.5,
+  b_gamma_1 = 0.5,
   a_tao     = 2,
   b_tao     = 1,
   alpha     = 1
 )
 
+
 #######################################
-# Generate DCG example data
+# Generate DCG Example
 #######################################
 
 example_list = generates_examples_DCG(
-  num_covariates,
-  N,
-  M,
-  0.9,
-  21
+  num_covariates = num_covariates,
+  N              = N,
+  M_input        = 2,          # components used to generate the errors
+  prob_sparsity  = 0.90,       # target edge density = 0.10
+  seed_input     = 21,
+  n_cycles       = 2,          # four vertex-disjoint directed cycles
+  len_range      = c(2, 4),
+  mag_range      = c(0.4, 0.9),
+  prob_positive  = 0.5,
+  tol_sing       = 0.05,
+  rho_max        = 0.95
 )
+
+
+#######################################
+# Extract generated data
+#######################################
 
 data_matrix = example_list$data_matrix
 Adjacency_matrix_true = example_list$Adjacency_matrix_true
 Causal_effect_matrix_true = example_list$Causal_effect_matrix_true
+Z_matrix_true = example_list$Z_matrix_true
+
+cycles_true = example_list$cycles
+rho_true = example_list$rho
+
+
+#######################################
+# Inspect generated DCG
+#######################################
+
+cycles_true
+#> [[1]]
+#> [1] 3 9 2 7
+#> 
+#> [[2]]
+#> [1]  5 10
+rho_true
+#> [1] 0.7454885
+```
+
+The generated DCG can be inspected using `cycles_true` and `rho_true`.
+Here, `cycles_true` lists the directed cycles used to construct the
+graph. For this example, the generated graph contains two
+vertex-disjoint cycles:
+
+- `3 -> 9 -> 2 -> 7 -> 3`
+- `5 -> 10 -> 5`
+
+Thus, no node belongs to more than one directed cycle, consistent with
+the disjoint-cycle restriction used by `BayesDCG`.
+
+The value `rho_true = 0.7454885` is the spectral radius of the generated
+causal-effect matrix. Since this value is below the specified stability
+threshold (`rho_max = 0.95` in this example), the generated DCG
+satisfies the stability requirement.
+
+``` r
+#######################################
+# Parameter Initialization
+#######################################
+
+B_seed = directlingam_seed(data_matrix)
+
+seed_edge_threshold = 0.05   # drop |seed coef| below this
+seed_rho_target     = 0.95   # stabilize initialization if needed
+seed_settle_sweeps  = 30     # mixture Gibbs sweeps before handing off
+
+#######################################
+# Initialization
+#######################################
+
+init_state = init_from_seed(
+  B_seed, data_matrix, N, num_covariates, M,
+  params$a_mu, params$b_mu,
+  params$a_tao, params$b_tao,
+  params$alpha,
+  params$a_gamma, params$b_gamma,
+  params$a_gamma_1, params$b_gamma_1,
+  edge_threshold = seed_edge_threshold,
+  rho_target     = seed_rho_target,
+  settle_sweeps  = seed_settle_sweeps
+)
+#> init_from_seed: edges 8  rho 0.000  gamma_1 0.526  gamma_result 0.081  log-post -409.9
+
+
+#######################################
+# Run Bayesian DCG Sampler
+#######################################
+
+results_list = BayesDCG(
+  data_matrix = data_matrix,
+
+  a_mu      = params$a_mu,
+  b_mu      = params$b_mu,
+  a_gamma   = params$a_gamma,
+  b_gamma   = params$b_gamma,
+  a_tao     = params$a_tao,
+  b_tao     = params$b_tao,
+  a_gamma_1 = params$a_gamma_1,
+  b_gamma_1 = params$b_gamma_1,
+  alpha     = params$alpha,
+
+  M        = M,
+  num_iter = num_iter,
+
+  burn_in_iterations = burn_in_iterations,
+
+  init_Adjacency     = init_state$Adjacency_matrix,
+  init_Causal_effect = init_state$Causal_effect_matrix,
+  init_mu            = init_state$mu_mat,
+  init_tao           = init_state$tao_mat,
+  init_pi            = init_state$pi_mat,
+  init_Z             = init_state$Z_matrix,
+  init_gamma_1       = init_state$gamma_1,
+  init_gamma_result  = init_state$gamma_result
+)
+#> [BayesDCG two-phase] 25%  (25000/100000)
+#> [BayesDCG two-phase] 50%  (50000/100000)
+#> [BayesDCG two-phase] 75%  (75000/100000)
+#> [BayesDCG two-phase] done -- 100000 iterations
+
+
+#######################################
+# Extract posterior outputs
+#######################################
+
+log_likelihood_list        = results_list$log_likelihood_list
+Adjacency_matrix_list      = results_list$Adjacency_matrix_list
+Causal_effect_matrix_list  = results_list$Causal_effect_matrix_list
+gamma_list                 = results_list$gamma_list
+gamma_1_list               = results_list$gamma_1_list
+mu_matrix_list             = results_list$mu_matrix_list
+tao_matrix_list            = results_list$tao_matrix_list
+pi_matrix_list             = results_list$pi_matrix_list
+
+# Number of retained posterior graph samples
+posterior_sample_length = nrow(Adjacency_matrix_list)
 ```
 
 Before examining posterior summaries, again we will visualize the true
@@ -518,7 +910,7 @@ plot(
 )
 ```
 
-<img src="man/figures/README-unnamed-chunk-15-1.png" alt="" width="100%" />
+<img src="man/figures/README-unnamed-chunk-16-1.png" alt="" width="100%" />
 
 With the simulated dataset and prior hyperparameters specified above, we
 now fit the Bayesian LiNGAM model using `BayesDCG().` The function,
@@ -528,38 +920,6 @@ similar to `BayesDAG(),` returns same posterior samples for
 - Causal effect matrices,
 - Mixture parameters for the error model, with component specific means
   and variances/precisions stored in matrices.
-
-``` r
-#######################################
-# Run Bayesian DCG sampler
-#######################################
-results_list = BayesDCG(
-  data_matrix,
-  params$a_mu,
-  params$b_mu,
-  params$a_gamma,
-  params$b_gamma,
-  params$a_tao,
-  params$b_tao,
-  params$a_gamma_1,
-  params$b_gamma_1,
-  params$alpha,
-  M,
-  num_iter
-)
-
-#######################################
-# Extract posterior outputs
-#######################################
-log_likelihood_list = results_list$log_likelihood_list
-Adjacency_matrix_list = results_list$Adjacency_matrix_list 
-Causal_effect_matrix_list = results_list$Causal_effect_matrix_list
-gamma_list = results_list$gamma_list
-gamma_1_list = results_list$gamma_1_list
-mu_matrix_list = results_list$mu_matrix_list
-tao_matrix_list = results_list$tao_matrix_list
-pi_matrix_list = results_list$pi_matrix_list
-```
 
 To obtain a representative estimate of the graph structure, we again use
 the function `point_est_graph(),` which selects the posterior weighted
@@ -571,21 +931,24 @@ custom functions.
 ``` r
 # SID is shown for completeness, it applies only when all posterior graphs are DAGs. If any sampled graph contains a cycle, SID-based selection will produce an error.
 Adjacency_matrix_sid = point_est_graph(Adjacency_matrix_list, dist_type = 'sid')
-#> Error in `point_est_graph()`:
+#> Error in `sid_matrix()`:
 #> ! SID distance requires all graphs to be DAGs.
 ```
 
 ``` r
 Adjacency_matrix_shd = point_est_graph(Adjacency_matrix_list,dist_type = 'shd')
 Adjacency_matrix_shd
-#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7]
-#> [1,]    0    0    0    0    0    0    0
-#> [2,]    0    0    0    0    0    0    1
-#> [3,]    0    1    0    0    0    1    0
-#> [4,]    0    0    0    0    0    0    0
-#> [5,]    1    0    1    0    0    0    0
-#> [6,]    0    0    0    0    1    0    0
-#> [7,]    0    0    1    1    0    0    0
+#>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+#>  [1,]    0    0    1    1    0    0    0    0    1     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    0    0    0    0    0    1    0    0     0
+#>  [4,]    0    0    0    0    0    0    0    0    0     0
+#>  [5,]    0    0    0    0    0    0    0    0    0     0
+#>  [6,]    0    0    0    0    0    0    0    0    0     0
+#>  [7,]    0    1    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    0    0    0    0    0    0     0
+#>  [9,]    0    0    1    0    0    0    0    0    0     0
+#> [10,]    0    0    0    0    1    0    0    0    0     0
 ```
 
 Using the same custom function as the acyclic case, we get following
@@ -594,14 +957,17 @@ graph structure.
 ``` r
 Adjacency_matrix_custom = point_est_graph(Adjacency_matrix_list, dist_type = 'custom', dist_fun = custom_edge_mismatch)
 Adjacency_matrix_custom
-#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7]
-#> [1,]    0    0    0    0    0    0    0
-#> [2,]    0    0    0    0    0    0    1
-#> [3,]    0    1    0    0    0    1    0
-#> [4,]    0    0    0    0    0    0    0
-#> [5,]    1    0    1    0    0    0    0
-#> [6,]    0    0    0    0    1    0    0
-#> [7,]    0    0    1    1    0    0    0
+#>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+#>  [1,]    0    0    1    1    0    0    0    0    1     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    0    0    0    0    0    1    0    0     0
+#>  [4,]    0    0    0    0    0    0    0    0    0     0
+#>  [5,]    0    0    0    0    0    0    0    0    0     0
+#>  [6,]    0    0    0    0    0    0    0    0    0     0
+#>  [7,]    0    1    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    0    0    0    0    0    0     0
+#>  [9,]    0    0    1    0    0    0    0    0    0     0
+#> [10,]    0    0    0    0    1    0    0    0    0     0
 ```
 
 In this example, the selected graphs coincide with the true adjacency
@@ -609,14 +975,17 @@ matrix:
 
 ``` r
 Adjacency_matrix_true
-#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7]
-#> [1,]    0    0    0    0    0    0    0
-#> [2,]    0    0    0    0    0    0    1
-#> [3,]    0    1    0    0    0    1    0
-#> [4,]    0    0    0    0    0    0    0
-#> [5,]    1    0    1    0    0    0    0
-#> [6,]    0    0    0    0    1    0    0
-#> [7,]    0    0    1    1    0    0    0
+#>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+#>  [1,]    0    0    1    1    0    0    0    0    1     0
+#>  [2,]    0    0    0    0    0    0    0    0    1     0
+#>  [3,]    0    0    0    0    0    0    1    0    0     0
+#>  [4,]    0    0    0    0    0    0    0    0    0     0
+#>  [5,]    0    0    0    0    0    0    0    0    0     1
+#>  [6,]    0    0    0    0    0    0    0    0    0     0
+#>  [7,]    0    1    0    0    0    0    0    0    0     0
+#>  [8,]    0    0    0    0    0    0    0    0    0     0
+#>  [9,]    0    0    1    0    0    0    0    0    0     0
+#> [10,]    0    0    0    0    1    0    0    0    0     0
 ```
 
 In addition to choosing the best possible graphs through distance based
@@ -628,12 +997,14 @@ candidate DCG, such as the true graph.
 ``` r
 true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true)
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
-#> [1] 1
+#> [1] 0.7012778
 ```
 
-Since the value is at 1, this indicates that the sampler visited the
-true graph structure repeatedly on every possible posterior graph
-structure.
+The posterior probability of the true network motif is $0.7013$,
+indicating that the motif is present in approximately $70.1\%$ of the
+retained posterior graph samples. This suggests substantial posterior
+support for the underlying structural feature, even though the exact
+full graph structure may vary across posterior draws.
 
 Similar to the acyclic case, to check whether the sampler has mixed well
 and is exploring the parameter space well, we again inspect the log
@@ -641,7 +1012,7 @@ likelihood. Below we plot the log likelihood for each iteration to
 assess mixing and posterior behavior:
 
 ``` r
-plot(log_likelihood_list[,1][(0.75*num_iter):num_iter], type='l', xlab = 'Iterations', ylab = 'log likelihood values')
+plot(log_likelihood_list, type='l', xlab = 'Iterations', ylab = 'log likelihood values')
 ```
 
 <img src="man/figures/README-unnamed-chunk-22-1.png" alt="" width="100%" />
@@ -654,62 +1025,305 @@ computes HPD and equal tailed credible intervals for each specific
 parameter entry represented as columns of the matrix outputs.
 
 ``` r
-# Compute HPD and CI summaries for causal effect matrix
-Causal_effect_matrix_summary = posterior_interval_est(Causal_effect_matrix_list, level = 0.95)
+#######################################
+# Posterior intervals
+#######################################
+
+Causal_effect_matrix_summary =
+  posterior_interval_est(
+    Causal_effect_matrix_list,
+    level = 0.95
+  )
+
 hpd_matrix_cyclic = Causal_effect_matrix_summary$hpd_matrix
-ci_matrix_cyclic = Causal_effect_matrix_summary$ci_matrix
+ci_matrix_cyclic  = Causal_effect_matrix_summary$ci_matrix
+
 
 #######################################
-# Extracting nonzero HPD intervals
+# True nonzero causal effects
 #######################################
 
-par(mfrow=c(2,1))
+# R vectorizes matrices column-by-column
+true_vec = as.vector(Causal_effect_matrix_true)
 
-nonzero_cols = which(colSums(hpd_matrix_cyclic) != 0)
+# Indices of all truly nonzero causal effects
+true_idx = which(true_vec != 0)
 
-hpd_sub = t(hpd_matrix_cyclic[, nonzero_cols, drop = FALSE])
-colnames(hpd_sub) = c("lower", "upper")
+# Convert vector indices back to matrix coordinates
+coords = arrayInd(
+  true_idx,
+  .dim = dim(Causal_effect_matrix_true)
+)
 
-# build data frame
-data_cyclic = as.data.frame(hpd_sub)
-data_cyclic$x = factor(seq_len(nrow(data_cyclic)))  # index for plotting
-data_cyclic$mid = (data_cyclic$lower + data_cyclic$upper) / 2
+# Convention:
+# B_ij is the causal effect j -> i
+true_effects_df = data.frame(
+  coef_index = true_idx,
+  child  = coords[, 1],
+  parent = coords[, 2],
+  truth  = true_vec[true_idx]
+)
 
-###############################################
-# HPD interval plot (cyclic)
-###############################################
-ggplot(data_cyclic, aes(x = x, y = mid)) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  geom_hline(yintercept = 0.7143305, linetype = "dashed", color = "red") +
-  labs(
-    x = "Nonzero causal-effect coefficient (index)",
-    y = "Causal Weight Estimate with HPD Interval"
+true_effects_df$edge = paste0(
+  true_effects_df$parent,
+  " -> ",
+  true_effects_df$child
+)
+
+
+#######################################
+# Check dimensions before matching
+#######################################
+
+if (ncol(hpd_matrix_cyclic) != length(true_vec)) {
+  stop(
+    "HPD matrix ordering/dimensions do not match Causal_effect_matrix_true."
+  )
+}
+
+if (nrow(ci_matrix_cyclic) != length(true_vec)) {
+  stop(
+    "CI matrix ordering/dimensions do not match Causal_effect_matrix_true."
+  )
+}
+
+
+#######################################
+# HPD intervals for TRUE causal effects
+#######################################
+
+hpd_sub = t(
+  hpd_matrix_cyclic[
+    ,
+    true_idx,
+    drop = FALSE
+  ]
+)
+
+colnames(hpd_sub) = c(
+  "lower",
+  "upper"
+)
+
+data_hpd_cyclic = data.frame(
+  edge  = true_effects_df$edge,
+  truth = true_effects_df$truth,
+  lower = hpd_sub[, "lower"],
+  upper = hpd_sub[, "upper"]
+)
+
+# Midpoint of HPD interval
+data_hpd_cyclic$estimate =
+  (
+    data_hpd_cyclic$lower +
+    data_hpd_cyclic$upper
+  ) / 2
+
+# Keep edge order fixed
+data_hpd_cyclic$edge =
+  factor(
+    data_hpd_cyclic$edge,
+    levels = data_hpd_cyclic$edge
+  )
+
+
+#######################################
+# Plot HPD intervals
+#######################################
+
+ggplot(
+  data_hpd_cyclic,
+  aes(
+    x = edge,
+    y = estimate
+  )
+) +
+
+  # 95% HPD interval
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    width = 0.2
   ) +
-  theme_minimal()
+
+  # Posterior estimate
+  geom_point(
+    size = 3,
+    color = "black"
+  ) +
+
+  # True causal effect: red X
+  geom_point(
+    aes(
+      y = truth
+    ),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% HPD Intervals"
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
 ```
 
 <img src="man/figures/README-unnamed-chunk-23-1.png" alt="" width="100%" />
 
 ``` r
 
+
 #######################################
-# Credible intervals
+# 95% credible intervals
+# for TRUE causal effects
 #######################################
 
-data_2 = data.frame(ci_matrix_cyclic[which(rowSums(ci_matrix_cyclic)!=0),])
-x = 1:nrow(data_2)
-data_2 = cbind(x,data_2)
+ci_sub =
+  ci_matrix_cyclic[
+    true_idx,
+    ,
+    drop = FALSE
+  ]
 
-ggplot(data_2, aes(x = x, y = X2)) +
-  geom_point(size = 3) +
-  geom_hline(yintercept = 0.7143305, linetype = "dashed", color = "red") +
-  geom_errorbar(aes(ymin = X1, ymax = X3), width = 0.2) +  
-  labs(y = "Causal Weight Estimate with 95% CI", x = "Nonzero causal-effect coefficient (index)") +
-  theme_minimal()
+data_ci_cyclic = data.frame(
+  edge     = true_effects_df$edge,
+  truth    = true_effects_df$truth,
+  lower    = ci_sub[, 1],
+  estimate = ci_sub[, 2],
+  upper    = ci_sub[, 3]
+)
+
+# Keep edge order fixed
+data_ci_cyclic$edge =
+  factor(
+    data_ci_cyclic$edge,
+    levels = data_ci_cyclic$edge
+  )
+
+
+#######################################
+# Plot credible intervals
+#######################################
+
+ggplot(
+  data_ci_cyclic,
+  aes(
+    x = edge,
+    y = estimate
+  )
+) +
+
+  # 95% credible interval
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    width = 0.2
+  ) +
+
+  # Posterior estimate
+  geom_point(
+    size = 3,
+    color = "black"
+  ) +
+
+  # True causal effect: red X
+  geom_point(
+    aes(
+      y = truth
+    ),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% Credible Intervals"
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
 ```
 
 <img src="man/figures/README-unnamed-chunk-23-2.png" alt="" width="100%" />
+
+``` r
+
+
+#######################################
+# Coverage
+#######################################
+
+data_hpd_cyclic$covered =
+  data_hpd_cyclic$truth >= data_hpd_cyclic$lower &
+  data_hpd_cyclic$truth <= data_hpd_cyclic$upper
+
+data_ci_cyclic$covered =
+  data_ci_cyclic$truth >= data_ci_cyclic$lower &
+  data_ci_cyclic$truth <= data_ci_cyclic$upper
+
+
+cat(
+  "HPD coverage:",
+  sum(data_hpd_cyclic$covered),
+  "out of",
+  nrow(data_hpd_cyclic),
+  "\n"
+)
+#> HPD coverage: 7 out of 9
+
+cat(
+  "Credible interval coverage:",
+  sum(data_ci_cyclic$covered),
+  "out of",
+  nrow(data_ci_cyclic),
+  "\n"
+)
+#> Credible interval coverage: 7 out of 9
+```
+
+The figures compare posterior estimates of the nonzero causal-effect
+coefficients with their true simulated values. Black points and vertical
+lines represent the posterior estimates and corresponding 95% intervals,
+while red crosses indicate the true causal effects.
+
+For most edges, the posterior estimates are close to the true values and
+the intervals contain or closely approach the corresponding true
+effects. The largest discrepancies occur for the reciprocal edges
+`5 -> 10` and `10 -> 5`, which form a two-node directed cycle in the
+true graph. In particular, the posterior provides relatively weak
+support for the `10 -> 5` effect, resulting in substantial posterior
+mass near zero and an interval that does not contain the true positive
+coefficient. The `5 -> 10` effect is retained but is overestimated in
+this example.
+
+These results illustrate that uncertainty in the causal-effect estimates
+reflects both uncertainty in graph selection and uncertainty in the
+magnitude of an included edge. In particular, coefficients are equal to
+zero in posterior draws for which the corresponding edge is absent.
 
 ## Documentation (vignette + appendix)
 

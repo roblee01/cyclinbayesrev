@@ -37,16 +37,18 @@
 #' @param init_gamma_1 Optional starting value for the slab variance \eqn{\gamma_1}. Defaults to NULL.
 #' @param init_gamma_result Optional starting value for the edge-inclusion probability \eqn{\gamma}. Defaults to NULL.
 #' @param num_iter Integer giving the total number of MCMC iterations for the \code{BayesDAG} algorithm.
+#' @param burn_in_iterations Integer giving the requested number of initial MCMC iterations to discard. Because \code{BayesDAG} uses an annealing period during early sampling, the effective burn-in is automatically increased to at least 20\% of \code{num_iter} when a smaller value is supplied. Only post-burn-in posterior draws are returned. Default value is 0.
 #'
-#' @return A list with one row per MCMC iteration in each trace:
+#' @return A list containing only retained post-burn-in posterior draws:
 #' \describe{
-#'   \item{Adjacency_matrix_list}{draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
-#'   \item{Causal_effect_matrix_list}{draws of the coefficient matrix, same layout}
-#'   \item{gamma_list, gamma_1_list}{draws of the edge-inclusion probability and the slab variance}
-#'   \item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{draws of the error-mixture means, variances and weights}
-#'   \item{log_likelihood_list}{log-likelihood at each iteration}
+#'   \item{Adjacency_matrix_list}{retained draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
+#'   \item{Causal_effect_matrix_list}{retained draws of the coefficient matrix, same layout}
+#'   \item{gamma_list, gamma_1_list}{retained draws of the edge-inclusion probability and the slab variance}
+#'   \item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{retained draws of the error-mixture means, variances and weights}
+#'   \item{log_likelihood_list}{log-likelihood values for the retained draws}
+#'   \item{first_stored_iteration}{original MCMC iteration corresponding to the first returned draw}
+#'   \item{n_stored}{number of retained posterior draws}
 #' }
-#' Unlike \code{\link{BayesDCG}}, every iteration is stored, so burn-in must be discarded afterwards.
 #'
 #' @export
 #' @examples
@@ -57,7 +59,8 @@
 #' N <- 250               # sample size
 #' num_covariates <- 7    # number of features
 #' M <- 2                 # mixture components for the error distribution
-#' num_iter <- 5000       # MCMC iterations
+#' num_iter <- 5000       # total MCMC iterations
+#' burn_in_iterations <- 1000  # requested burn-in
 #'
 #' # True DAG and data
 #' truth <- generate_dag(num_covariates, edge_prob = 0.15,
@@ -77,12 +80,15 @@
 #'   a_gamma_1 = 2, b_gamma_1 = 1,
 #'   alpha = 1,
 #'   M = M,
-#'   num_iter = num_iter
+#'   num_iter = num_iter,
+#'   burn_in_iterations = burn_in_iterations
 #' )
 #'
-#' # This sampler stores every iteration, so discard burn-in yourself
-#' keep <- seq(floor(num_iter / 2) + 1, num_iter)
-#' edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list[keep, ]),
+#' # Returned traces already contain only retained posterior draws
+#' results_lists$first_stored_iteration
+#' results_lists$n_stored
+#'
+#' edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list),
 #'                     num_covariates, num_covariates)
 #' estimated_graph <- (edge_prob > 0.5) * 1
 #'
@@ -97,6 +103,7 @@
 #' results_lists2 <- BayesDAG(
 #'   data_matrix,
 #'   M = M, num_iter = num_iter,
+#'   burn_in_iterations = burn_in_iterations,
 #'   init_Adjacency     = matrix(results_lists$Adjacency_matrix_list[last, ],
 #'                               num_covariates, num_covariates),
 #'   init_Causal_effect = matrix(results_lists$Causal_effect_matrix_list[last, ],
@@ -111,6 +118,7 @@
 BayesDAG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 0.5, b_gamma = 0.5,
                      a_tao = 2, b_tao = 1, a_og_tao = 0.01, b_og_tao = 0.01,
                      a_gamma_1 = 2, b_gamma_1 = 1, alpha = 1, M, num_iter,
+                     burn_in_iterations = 0,
                      init_Adjacency = NULL, init_Causal_effect = NULL,
                      init_mu = NULL, init_tao = NULL, init_pi = NULL,
                      init_Z = NULL, init_gamma_1 = NULL,
@@ -118,6 +126,7 @@ BayesDAG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 0.5, b_gamma = 0
   return(BayesSCLingam_cpp(
     data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao,
     a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter,
+    burn_in_iterations = burn_in_iterations,
     init_Adjacency     = .init_matrix(init_Adjacency,     "init_Adjacency"),
     init_Causal_effect = .init_matrix(init_Causal_effect, "init_Causal_effect"),
     init_mu            = .init_matrix(init_mu,            "init_mu"),

@@ -29,7 +29,7 @@
 #'   picks a value that fits in \eqn{p} vertices given \code{len_range}.
 #' @param len_range Length-2 numeric. Range of cycle lengths.
 #' @param mag_range Length-2 numeric. Range of absolute edge weights.
-#' @param prob_positive Numeric in [0, 1]. Probability an edge weight is positive.
+#' @param prob_positive Numeric in \eqn{[0,1]}. Probability an edge weight is positive.
 #' @param tol_sing Numeric. Required margin on \eqn{\min_m |1 - w_m|}.
 #' @param rho_max Numeric. Upper bound required on the spectral radius.
 #' @param max_tries Integer. Maximum weight redraws before giving up.

@@ -178,8 +178,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // BayesSCLingam_cpp
-List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_og_tao, double b_og_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter, Rcpp::Nullable<Rcpp::NumericMatrix> init_Adjacency, Rcpp::Nullable<Rcpp::NumericMatrix> init_Causal_effect, Rcpp::Nullable<Rcpp::NumericMatrix> init_mu, Rcpp::Nullable<Rcpp::NumericMatrix> init_tao, Rcpp::Nullable<Rcpp::NumericMatrix> init_pi, Rcpp::Nullable<Rcpp::NumericMatrix> init_Z, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_1, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_result);
-RcppExport SEXP _cyclinbayesrev_BayesSCLingam_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_og_taoSEXP, SEXP b_og_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP, SEXP init_AdjacencySEXP, SEXP init_Causal_effectSEXP, SEXP init_muSEXP, SEXP init_taoSEXP, SEXP init_piSEXP, SEXP init_ZSEXP, SEXP init_gamma_1SEXP, SEXP init_gamma_resultSEXP) {
+List BayesSCLingam_cpp(arma::mat data_matrix, double a_mu, double b_mu, double a_gamma, double b_gamma, double a_tao, double b_tao, double a_og_tao, double b_og_tao, double a_gamma_1, double b_gamma_1, double alpha, double M, double num_iter, double burn_in_iterations, Rcpp::Nullable<Rcpp::NumericMatrix> init_Adjacency, Rcpp::Nullable<Rcpp::NumericMatrix> init_Causal_effect, Rcpp::Nullable<Rcpp::NumericMatrix> init_mu, Rcpp::Nullable<Rcpp::NumericMatrix> init_tao, Rcpp::Nullable<Rcpp::NumericMatrix> init_pi, Rcpp::Nullable<Rcpp::NumericMatrix> init_Z, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_1, Rcpp::Nullable<Rcpp::NumericVector> init_gamma_result);
+RcppExport SEXP _cyclinbayesrev_BayesSCLingam_cpp(SEXP data_matrixSEXP, SEXP a_muSEXP, SEXP b_muSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_taoSEXP, SEXP b_taoSEXP, SEXP a_og_taoSEXP, SEXP b_og_taoSEXP, SEXP a_gamma_1SEXP, SEXP b_gamma_1SEXP, SEXP alphaSEXP, SEXP MSEXP, SEXP num_iterSEXP, SEXP burn_in_iterationsSEXP, SEXP init_AdjacencySEXP, SEXP init_Causal_effectSEXP, SEXP init_muSEXP, SEXP init_taoSEXP, SEXP init_piSEXP, SEXP init_ZSEXP, SEXP init_gamma_1SEXP, SEXP init_gamma_resultSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -197,6 +197,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type M(MSEXP);
     Rcpp::traits::input_parameter< double >::type num_iter(num_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type burn_in_iterations(burn_in_iterationsSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Adjacency(init_AdjacencySEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Causal_effect(init_Causal_effectSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_mu(init_muSEXP);
@@ -205,7 +206,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_Z(init_ZSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_1(init_gamma_1SEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type init_gamma_result(init_gamma_resultSEXP);
-    rcpp_result_gen = Rcpp::wrap(BayesSCLingam_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result));
+    rcpp_result_gen = Rcpp::wrap(BayesSCLingam_cpp(data_matrix, a_mu, b_mu, a_gamma, b_gamma, a_tao, b_tao, a_og_tao, b_og_tao, a_gamma_1, b_gamma_1, alpha, M, num_iter, burn_in_iterations, init_Adjacency, init_Causal_effect, init_mu, init_tao, init_pi, init_Z, init_gamma_1, init_gamma_result));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -290,7 +291,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_cyclinbayesrev_is_dag", (DL_FUNC) &_cyclinbayesrev_is_dag, 1},
     {"_cyclinbayesrev_Metropolis_hastings_portions_Z_cpp", (DL_FUNC) &_cyclinbayesrev_Metropolis_hastings_portions_Z_cpp, 10},
     {"_cyclinbayesrev_score_state_cpp", (DL_FUNC) &_cyclinbayesrev_score_state_cpp, 8},
-    {"_cyclinbayesrev_BayesSCLingam_cpp", (DL_FUNC) &_cyclinbayesrev_BayesSCLingam_cpp, 22},
+    {"_cyclinbayesrev_BayesSCLingam_cpp", (DL_FUNC) &_cyclinbayesrev_BayesSCLingam_cpp, 23},
     {"_cyclinbayesrev_project_to_disjoint_cycle_space_cpp", (DL_FUNC) &_cyclinbayesrev_project_to_disjoint_cycle_space_cpp, 5},
     {"_cyclinbayesrev_has_disjoint_cycles_cpp", (DL_FUNC) &_cyclinbayesrev_has_disjoint_cycles_cpp, 1},
     {"_cyclinbayesrev_get_sccs_cpp", (DL_FUNC) &_cyclinbayesrev_get_sccs_cpp, 1},

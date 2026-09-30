@@ -28,8 +28,8 @@ Implemented in Rcpp, cyclinbayes leverages optimized C++ routines to handle larg
 You can install the development version of cyclinbayes from GitHub using remotes:
 
 ```{r}
-install.packages("remotes")
-remotes::install_github("roblee01/cyclinbayesrev")
+#install.packages("remotes")
+#remotes::install_github("roblee01/cyclinbayesrev")
 ```
 
 Then load the package:
@@ -102,7 +102,8 @@ where the \(i\)-th row of \(Y\) corresponds to
 N = 200 # Sample size for the test data
 num_covariates = 10 # Number of features for test data
 M = 5 # Number of finite clusters for mixed normal in likelihood
-num_iter = 80000 # Number of iterations MCMC runs
+num_iter = 100000 # Total number of MCMC iterations
+burn_in_iterations = 20000 # Discard initial draws; retain post-burn-in posterior samples
 
 #######################################
 # Hyperparameter setup
@@ -164,13 +165,15 @@ plot(
 )
 ```
 
-With the simulated dataset and prior hyperparameters specified above, we fit the Bayesian LiNGAM model using `BayesDAG().` Each MCMC iteration \[t\] produces:
+With the simulated dataset and prior hyperparameters specified above, we fit the Bayesian LiNGAM model using `BayesDAG().` The sampler runs for `num_iter` iterations, but only post-burn-in draws are returned for posterior analysis. The `burn_in_iterations` argument specifies how many initial iterations are discarded. Because the DAG sampler uses an annealing contribution during the early iterations, the implementation ensures that the effective burn-in is at least 20% of `num_iter`; if a smaller value is supplied, it is automatically increased to the end of this annealing window. Thus, the returned samples correspond only to the post-annealing posterior-sampling phase.
+
+For each retained iteration $t$, the output includes:
 
 - Adjacency matrix $E^{(t)}\in \{0,1\}^{p\times p}$
 - Causal effect matrix $B^{(t)}\in \mathbb{R}^{p\times p}$
 - Mixture parameters for the error model, with component specific means and variances/precisions stored in matrices (e.g., $\mu^{(t)},\tau^{(t)}\in \mathbb{R}^{p\times M}$, where column $k$ corresponds to mixture component $k$).
 
-For posterior summaries, each iteration's matrices are flattened (vectorized) into a single parameter vector. Concretely, we apply $vec(\cdot)$ to stack all entries of $E^{(t)}$, $B^{(t)}$, $\mu^{(t)}$, and $\tau^{(t)}$, and stack these vectors over iterations to form a matrix of samples where the rows are iterations and columns correspond to fixed matrix entries (one column for $B_{ij}$ or $\mu_{ik}$). This makes element wise quantities, edge probabilities, HPD/credible intervals, and other summaries straightforward to compute.
+For posterior summaries, the retained matrices are flattened (vectorized) into parameter vectors. Rows correspond to retained posterior draws and columns correspond to fixed matrix entries (for example, one column for $B_{ij}$ or $\mu_{ik}$). This makes edge probabilities, HPD/credible intervals, and other posterior summaries straightforward to compute.
 
 ```{r example}
 #######################################
@@ -205,6 +208,7 @@ results_list = BayesDAG(
       params$alpha,
       M,
       num_iter,
+      burn_in_iterations = burn_in_iterations,
       init_Adjacency     = init_state$Adjacency_matrix,
       init_Causal_effect = init_state$Causal_effect_matrix,
       init_mu            = init_state$mu_mat,
@@ -226,9 +230,18 @@ gamma_1_list = results_list$gamma_1_list
 mu_matrix_list = results_list$mu_matrix_list
 tao_matrix_list = results_list$tao_matrix_list
 pi_matrix_list = results_list$pi_matrix_list
+
+# Information about the retained posterior sample
+first_stored_iteration = results_list$first_stored_iteration
+posterior_sample_length = results_list$n_stored
+
+first_stored_iteration
+posterior_sample_length
 ```
 
-To obtain a representative estimate of the graph structure, we use the function `point_est_graph(),` which selects the posterior weighted medoid, the graph that minimizes the weight distance to all other sampled adjacency matrices. Users may select one of the build in distances or supply their own custom functions. The available distance metrics are:
+All downstream posterior summaries use these retained post-burn-in draws. In this example, `burn_in_iterations = 20000`, so the returned posterior samples begin at iteration 20,001 and contain 80,000 draws.
+
+To obtain a representative estimate of the graph structure, we use the function `point_est_graph(),` which selects the posterior weighted medoid, the graph that minimizes the weight distance to all other sampled adjacency matrices. Users may select one of the built in distances or supply their own custom functions. The available distance metrics are:
 
 - **Structural Hamming Distance (SHD):**  
   Counts the number of single edge edits (additions, deletions, or reversals)
@@ -276,7 +289,7 @@ Adjacency_matrix_custom = point_est_graph(Adjacency_matrix_list, dist_type = 'cu
 Adjacency_matrix_custom
 ```
 
-We observe that the three structures selected using different distance metrics are all identical.
+We observe that the structures selected using SHD and the custom edge mismatch distance are identical, whereas the structure selected using SID differs.
 
 ```{r}
 Adjacency_matrix_true
@@ -291,18 +304,30 @@ true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 ```
 
-Since the value is at 0.993, this indicates that the sampler visited the true graph structure repeatedly on every possible posterior graph structure. 
+Since the value is at 1, this indicates that the sampler visited the true graph structure repeatedly on every possible posterior graph structure. 
 
-To assess whether the sampler has mixed well and is exploring the parameter space adequately, we inspect the trace plot for the log likelihood. The log likelihood trace is especially useful, as it reflects convergence of the entire parameter configuration rather than a single component. Stable behavior in both the parameter traces and the log likelihood provides strong evidence that the chain has reached stationarity. The trace plot for the log likelihood is plotted below:
+To inspect sampler behavior, we plot the log likelihood over the retained posterior-sampling phase. Because `BayesDAG()` now returns only post-burn-in draws, no additional indexing by `num_iter` is needed.
 
 ```{r}
-plot(log_likelihood_list[,1][(0.75*num_iter):num_iter], type='l', xlab = 'Iterations', ylab = 'log likelihood values')
+posterior_iterations = seq(
+  from = first_stored_iteration,
+  length.out = posterior_sample_length
+)
+
+plot(
+  posterior_iterations,
+  log_likelihood_list,
+  type = 'l',
+  xlab = 'Iterations',
+  ylab = 'log likelihood values'
+)
 ```
 
 As shown above, the log-likelihood remains within a relatively stable range
-after burn-in, suggesting that the sampler has reached a stationary regime.
-This provides evidence that the retained posterior samples are suitable for
-summarizing the remaining model parameters.
+during the retained posterior-sampling phase, providing empirical evidence
+that the sampler has entered a stable sampling regime. The graph summaries
+and interval estimates below are therefore computed directly from the
+post-burn-in samples returned by `BayesDAG()`.
 
 Posterior interval estimates are obtained using 
 \texttt{posterior\_interval\_est()}, which computes highest posterior density
@@ -520,6 +545,19 @@ cat(
   "\n"
 )
 ```
+The figures compare posterior estimates of the nonzero causal effect
+coefficients with their true simulated values. Black points and vertical
+lines represent the posterior estimates and corresponding 95% intervals,
+while red crosses indicate the true causal effects.
+
+In this acyclic example, the posterior estimates closely match the true
+causal-effect coefficients across all true edges. The 95% HPD and
+equal-tailed credible intervals contain, or closely surround, the
+corresponding true values, indicating accurate recovery of both the
+direction and magnitude of the nonzero causal effects. The HPD and
+equal tailed intervals are also very similar, suggesting relatively
+well concentrated posterior distributions for the estimated effects in
+this example.
 
 ## Cyclic (DCG) Example
 
@@ -541,26 +579,20 @@ probability. For excluded edges, \(B_{ij}=0\).
 Because feedback is present in a cyclic model, we additionally require the
 causal-effect matrix to satisfy the stability condition
 
-\[
-\rho(B)
-=
-\max_{\lambda \in \operatorname{eig}(B)} |\lambda|
-< 1.
-\]
+<div style="text-align: center; margin: 1em 0;">
+&rho;(B) = max { |&lambda;| : &lambda; &isin; eig(B) } &lt; 1.
+</div>
 
-Only stable causal-effect matrices satisfying this condition are used to
-generate the data. This also guarantees that \(I-B\) is invertible.
-
+Here, &rho;(B) denotes the spectral radius of the causal-effect matrix.
 Given the causal-effect matrix \(B\) and structural error matrix
 \(\epsilon\), the observed data are generated from
 
 \[
-Y=(I-B)^{-1}\epsilon.
+Y = (I-B)^{-1}\epsilon.
 \]
 
 The resulting data therefore arise from a stable linear non-Gaussian cyclic
 structural equation model with disjoint directed cycles.
-
 ```{r}
 #######################################
 # Simulation and MCMC settings
@@ -569,8 +601,8 @@ structural equation model with disjoint directed cycles.
 N = 200
 num_covariates = 10
 M = 5
-num_iter = 80000
-burn_in_iterations = 50000
+num_iter = 100000
+burn_in_iterations = 70000
 
 
 #######################################
@@ -629,7 +661,20 @@ rho_true = example_list$rho
 cycles_true
 rho_true
 ```
+The generated DCG can be inspected using `cycles_true` and `rho_true`.
+Here, `cycles_true` lists the directed cycles used to construct the graph.
+For this example, the generated graph contains two vertex-disjoint cycles:
 
+- `3 -> 9 -> 2 -> 7 -> 3`
+- `5 -> 10 -> 5`
+
+Thus, no node belongs to more than one directed cycle, consistent with the
+disjoint-cycle restriction used by `BayesDCG`.
+
+The value `rho_true = 0.7454885` is the spectral radius of the generated
+causal-effect matrix. Since this value is below the specified stability
+threshold (`rho_max = 0.95` in this example), the generated DCG satisfies
+the stability requirement.
 
 ```{r}
 #######################################
@@ -770,67 +815,301 @@ true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 ```
 
-Since the value is at 1, this indicates that the sampler visited the true graph structure repeatedly on every possible posterior graph structure.
+The posterior probability of the true network motif is $0.7013$, indicating that the motif is present in approximately $70.1\%$ of the retained posterior graph samples. This suggests substantial posterior support for the underlying structural feature, even though the exact full graph structure may vary across posterior draws.
 
 Similar to the acyclic case, to check whether the sampler has mixed well and is exploring the parameter space well, we again inspect the log likelihood. Below we plot the log likelihood for each iteration to assess mixing and posterior behavior:
 
 ```{r}
-plot(log_likelihood_list[,1][(0.75*num_iter):num_iter], type='l', xlab = 'Iterations', ylab = 'log likelihood values')
+plot(log_likelihood_list, type='l', xlab = 'Iterations', ylab = 'log likelihood values')
 ```
 As seen overall, the log_likelihoods stay in the same general area indicating the sampler has reached a stationary regime, indicating posterior summaries for the other parameters are from a well converged chain. Similar to the acyclic case, we can summarize uncertainty in the causal effect coefficients using `posterior_interval_est(),` which computes HPD and equal tailed credible intervals for each specific parameter entry represented as columns of the matrix outputs. 
 
 ```{r}
-# Compute HPD and CI summaries for causal effect matrix
-Causal_effect_matrix_summary = posterior_interval_est(Causal_effect_matrix_list, level = 0.95)
+#######################################
+# Posterior intervals
+#######################################
+
+Causal_effect_matrix_summary =
+  posterior_interval_est(
+    Causal_effect_matrix_list,
+    level = 0.95
+  )
+
 hpd_matrix_cyclic = Causal_effect_matrix_summary$hpd_matrix
-ci_matrix_cyclic = Causal_effect_matrix_summary$ci_matrix
+ci_matrix_cyclic  = Causal_effect_matrix_summary$ci_matrix
+
 
 #######################################
-# Extracting nonzero HPD intervals
+# True nonzero causal effects
 #######################################
 
-par(mfrow=c(2,1))
+# R vectorizes matrices column-by-column
+true_vec = as.vector(Causal_effect_matrix_true)
 
-nonzero_cols = which(colSums(hpd_matrix_cyclic) != 0)
+# Indices of all truly nonzero causal effects
+true_idx = which(true_vec != 0)
 
-hpd_sub = t(hpd_matrix_cyclic[, nonzero_cols, drop = FALSE])
-colnames(hpd_sub) = c("lower", "upper")
+# Convert vector indices back to matrix coordinates
+coords = arrayInd(
+  true_idx,
+  .dim = dim(Causal_effect_matrix_true)
+)
 
-# build data frame
-data_cyclic = as.data.frame(hpd_sub)
-data_cyclic$x = factor(seq_len(nrow(data_cyclic)))  # index for plotting
-data_cyclic$mid = (data_cyclic$lower + data_cyclic$upper) / 2
+# Convention:
+# B_ij is the causal effect j -> i
+true_effects_df = data.frame(
+  coef_index = true_idx,
+  child  = coords[, 1],
+  parent = coords[, 2],
+  truth  = true_vec[true_idx]
+)
 
-###############################################
-# HPD interval plot (cyclic)
-###############################################
-ggplot(data_cyclic, aes(x = x, y = mid)) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  geom_hline(yintercept = 0.7143305, linetype = "dashed", color = "red") +
-  labs(
-    x = "Nonzero causal-effect coefficient (index)",
-    y = "Causal Weight Estimate with HPD Interval"
+true_effects_df$edge = paste0(
+  true_effects_df$parent,
+  " -> ",
+  true_effects_df$child
+)
+
+
+#######################################
+# Check dimensions before matching
+#######################################
+
+if (ncol(hpd_matrix_cyclic) != length(true_vec)) {
+  stop(
+    "HPD matrix ordering/dimensions do not match Causal_effect_matrix_true."
+  )
+}
+
+if (nrow(ci_matrix_cyclic) != length(true_vec)) {
+  stop(
+    "CI matrix ordering/dimensions do not match Causal_effect_matrix_true."
+  )
+}
+
+
+#######################################
+# HPD intervals for TRUE causal effects
+#######################################
+
+hpd_sub = t(
+  hpd_matrix_cyclic[
+    ,
+    true_idx,
+    drop = FALSE
+  ]
+)
+
+colnames(hpd_sub) = c(
+  "lower",
+  "upper"
+)
+
+data_hpd_cyclic = data.frame(
+  edge  = true_effects_df$edge,
+  truth = true_effects_df$truth,
+  lower = hpd_sub[, "lower"],
+  upper = hpd_sub[, "upper"]
+)
+
+# Midpoint of HPD interval
+data_hpd_cyclic$estimate =
+  (
+    data_hpd_cyclic$lower +
+    data_hpd_cyclic$upper
+  ) / 2
+
+# Keep edge order fixed
+data_hpd_cyclic$edge =
+  factor(
+    data_hpd_cyclic$edge,
+    levels = data_hpd_cyclic$edge
+  )
+
+
+#######################################
+# Plot HPD intervals
+#######################################
+
+ggplot(
+  data_hpd_cyclic,
+  aes(
+    x = edge,
+    y = estimate
+  )
+) +
+
+  # 95% HPD interval
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    width = 0.2
   ) +
-  theme_minimal()
+
+  # Posterior estimate
+  geom_point(
+    size = 3,
+    color = "black"
+  ) +
+
+  # True causal effect: red X
+  geom_point(
+    aes(
+      y = truth
+    ),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% HPD Intervals"
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
 
 #######################################
-# Credible intervals
+# 95% credible intervals
+# for TRUE causal effects
 #######################################
 
-data_2 = data.frame(ci_matrix_cyclic[which(rowSums(ci_matrix_cyclic)!=0),])
-x = 1:nrow(data_2)
-data_2 = cbind(x,data_2)
+ci_sub =
+  ci_matrix_cyclic[
+    true_idx,
+    ,
+    drop = FALSE
+  ]
 
-ggplot(data_2, aes(x = x, y = X2)) +
-  geom_point(size = 3) +
-  geom_hline(yintercept = 0.7143305, linetype = "dashed", color = "red") +
-  geom_errorbar(aes(ymin = X1, ymax = X3), width = 0.2) +  
-  labs(y = "Causal Weight Estimate with 95% CI", x = "Nonzero causal-effect coefficient (index)") +
-  theme_minimal()
+data_ci_cyclic = data.frame(
+  edge     = true_effects_df$edge,
+  truth    = true_effects_df$truth,
+  lower    = ci_sub[, 1],
+  estimate = ci_sub[, 2],
+  upper    = ci_sub[, 3]
+)
 
+# Keep edge order fixed
+data_ci_cyclic$edge =
+  factor(
+    data_ci_cyclic$edge,
+    levels = data_ci_cyclic$edge
+  )
+
+
+#######################################
+# Plot credible intervals
+#######################################
+
+ggplot(
+  data_ci_cyclic,
+  aes(
+    x = edge,
+    y = estimate
+  )
+) +
+
+  # 95% credible interval
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    width = 0.2
+  ) +
+
+  # Posterior estimate
+  geom_point(
+    size = 3,
+    color = "black"
+  ) +
+
+  # True causal effect: red X
+  geom_point(
+    aes(
+      y = truth
+    ),
+    shape = 4,
+    size = 4,
+    stroke = 1.3,
+    color = "red"
+  ) +
+
+  labs(
+    x = "True Causal Edge",
+    y = "Causal Effect",
+    title = "Posterior Estimates with 95% Credible Intervals"
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
+
+#######################################
+# Coverage
+#######################################
+
+data_hpd_cyclic$covered =
+  data_hpd_cyclic$truth >= data_hpd_cyclic$lower &
+  data_hpd_cyclic$truth <= data_hpd_cyclic$upper
+
+data_ci_cyclic$covered =
+  data_ci_cyclic$truth >= data_ci_cyclic$lower &
+  data_ci_cyclic$truth <= data_ci_cyclic$upper
+
+
+cat(
+  "HPD coverage:",
+  sum(data_hpd_cyclic$covered),
+  "out of",
+  nrow(data_hpd_cyclic),
+  "\n"
+)
+
+cat(
+  "Credible interval coverage:",
+  sum(data_ci_cyclic$covered),
+  "out of",
+  nrow(data_ci_cyclic),
+  "\n"
+)
 ```
+The figures compare posterior estimates of the nonzero causal-effect
+coefficients with their true simulated values. Black points and vertical
+lines represent the posterior estimates and corresponding 95% intervals,
+while red crosses indicate the true causal effects.
 
+For most edges, the posterior estimates are close to the true values and
+the intervals contain or closely approach the corresponding true effects.
+The largest discrepancies occur for the reciprocal edges `5 -> 10` and
+`10 -> 5`, which form a two-node directed cycle in the true graph. In
+particular, the posterior provides relatively weak support for the
+`10 -> 5` effect, resulting in substantial posterior mass near zero and
+an interval that does not contain the true positive coefficient. The
+`5 -> 10` effect is retained but is overestimated in this example.
+
+These results illustrate that uncertainty in the causal-effect estimates
+reflects both uncertainty in graph selection and uncertainty in the
+magnitude of an included edge. In particular, coefficients are equal to
+zero in posterior draws for which the corresponding edge is absent.
 
 ## Documentation (vignette + appendix)
 
