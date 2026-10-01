@@ -1,66 +1,155 @@
-#' Coherent warm start for the causal discovery samplers
+#' Initialize Bayesian Causal Discovery Samplers (Helper Function)
 #'
 #' @description
-#' Builds a complete, internally consistent starting state for
-#' \code{\link{BayesDCG}} or \code{\link{BayesDAG}} from a seed coefficient
-#' matrix, for example a DirectLiNGAM estimate.
+#' Helper function for constructing an initial parameter state for
+#' \code{\link{BayesDAG}} or \code{\link{BayesDCG}}.
+#' It is primarily provided to support the reproducible examples
+#' in the package README, function demonstrations, and simulation studies.
+#'
+#' This function is not a standalone causal discovery or estimation
+#' procedure. Instead, it prepares the initial parameter values
+#' required to run the Bayesian causal discovery samplers.
+#' Users can supply a preliminary coefficient matrix, such as one
+#' obtained from \code{\link{directlingam_seed}}, or initialize
+#' from an empty graph.
 #'
 #' @details
-#' Every parameter is initialised to be consistent with the residuals the seed
-#' graph implies: graph, then residuals, then the error mixture, then the
-#' mixture weights, then the two scalars. The result is a coherent state at
-#' iteration 0 rather than a good graph attached to a random error model.
+#' The function constructs a consistent initial state for the
+#' adjacency matrix, causal-effect coefficients, error-mixture
+#' parameters, mixture weights, and hyperparameters.
 #'
-#' Seed edges below \code{edge_threshold} in absolute value are dropped, and
-#' the coefficients are rescaled if the spectral radius reaches
-#' \code{rho_target}, which keeps \eqn{(I - B)^{-1}} stable. With
-#' \code{B_seed = NULL} the state starts from the empty graph, which still
-#' gives a mixture fitted to the data and needs no external seeding method.
+#' Given a seed coefficient matrix, the function first determines
+#' the initial graph structure and computes the corresponding
+#' residuals. It then initializes the Gaussian mixture parameters
+#' using these residuals. This provides an initial state in which
+#' the graph and error-model parameters are mutually consistent.
 #'
-#' @param B_seed \eqn{p \times p} seed coefficient matrix, or NULL to start
-#'   from the empty graph.
-#' @param data_matrix \eqn{N \times p} data matrix.
+#' Seed coefficients smaller than \code{edge_threshold} in
+#' absolute value are removed. The coefficient matrix is also
+#' rescaled if its spectral radius reaches \code{rho_target},
+#' ensuring that the initialized model satisfies the specified
+#' stability condition.
+#'
+#' When \code{B_seed = NULL}, initialization begins from an
+#' empty graph, without requiring an external estimation method.
+#'
+#' The resulting parameter values can be passed to
+#' \code{\link{BayesDAG}} or \code{\link{BayesDCG}} as initial
+#' states. These values serve only as starting points;
+#' posterior inference is subsequently performed by the
+#' corresponding Bayesian sampler.
+#'
+#' @param B_seed \eqn{p \times p} seed coefficient matrix,
+#'   or NULL to initialize from an empty graph.
+#' @param data_matrix \eqn{N \times p} numeric data matrix.
 #' @param N Integer. Number of observations.
 #' @param num_covariates Integer. Number of variables, \eqn{p}.
 #' @param M Integer. Number of mixture components.
-#' @param a_mu,b_mu,a_tao,b_tao,alpha Error-mixture hyperparameters, as passed
-#'   to the sampler.
-#' @param a_gamma,b_gamma,a_gamma_1,b_gamma_1 Graph and slab hyperparameters,
-#'   as passed to the sampler.
-#' @param edge_threshold Numeric. Seed coefficients smaller than this in
-#'   absolute value are treated as absent.
-#' @param rho_target Numeric. Coefficients are rescaled if the spectral radius
-#'   reaches this value.
-#' @param settle_sweeps Integer. Mixture Gibbs sweeps run on the fixed seed
-#'   graph before handing off.
-#' @param verbose Logical. Print a one-line summary of the seeded state.
-#' @param acyclic Logical. If TRUE, edges are dropped smallest first until the
-#'   graph is acyclic, which \code{\link{BayesDAG}} requires of
-#'   \code{init_Adjacency}.
+#' @param a_mu,b_mu,a_tao,b_tao,alpha Error-mixture
+#'   hyperparameters, as passed to the sampler.
+#' @param a_gamma,b_gamma,a_gamma_1,b_gamma_1 Graph and slab
+#'   hyperparameters, as passed to the sampler.
+#' @param edge_threshold Numeric. Seed coefficients smaller
+#'   than this value in absolute magnitude are treated as absent.
+#' @param rho_target Numeric. Coefficients are rescaled if
+#'   the spectral radius reaches this value.
+#' @param settle_sweeps Integer. Number of Gaussian-mixture
+#'   Gibbs sweeps performed with the seed graph fixed
+#'   before initialization is completed.
+#' @param verbose Logical. Whether to print a summary of
+#'   the initialized state.
+#' @param acyclic Logical. If TRUE, edges are removed in
+#'   increasing order of absolute coefficient magnitude
+#'   until the graph is acyclic, as required by
+#'   \code{\link{BayesDAG}}.
 #'
-#' @return A list with \code{Adjacency_matrix}, \code{Causal_effect_matrix},
-#'   \code{Z_matrix}, \code{mu_mat}, \code{tao_mat}, \code{pi_mat},
-#'   \code{gamma_1}, \code{gamma_result} and \code{log_post}. Pass it to a
-#'   sampler with \code{\link{bayes_init_args}}.
+#' @return
+#' A list containing the initialized model parameters:
+#' \describe{
+#'   \item{Adjacency_matrix}{
+#'     Initial adjacency matrix.
+#'   }
+#'   \item{Causal_effect_matrix}{
+#'     Initial causal-effect coefficient matrix.
+#'   }
+#'   \item{Z_matrix}{
+#'     Initial mixture-component allocation indicators.
+#'   }
+#'   \item{mu_mat}{
+#'     Initial mixture-component means.
+#'   }
+#'   \item{tao_mat}{
+#'     Initial mixture-component variances.
+#'   }
+#'   \item{pi_mat}{
+#'     Initial mixture weights.
+#'   }
+#'   \item{gamma_1}{
+#'     Initial slab variance.
+#'   }
+#'   \item{gamma_result}{
+#'     Initial edge-inclusion probability.
+#'   }
+#'   \item{log_post}{
+#'     Initial log-posterior value.
+#'   }
+#' }
 #'
-#' @seealso \code{\link{bayes_init_args}}, \code{\link{init_multistart_from_seed}}
+#' The returned values can be passed to a Bayesian sampler
+#' using \code{\link{bayes_init_args}}.
+#'
+#' @seealso
+#' \code{\link{directlingam_seed}} for obtaining a preliminary
+#' coefficient matrix,
+#' \code{\link{bayes_init_args}} for passing initialized
+#' parameters to a sampler,
+#' \code{\link{BayesDAG}} and \code{\link{BayesDCG}} for
+#' Bayesian causal discovery.
+#'
 #' @export
-#' @examples
-#' ex <- generates_examples_DAG(num_covariates = 7, N = 150, M_input = 2,
-#'                              prob_sparsity = 0.9, seed_input = 21)
 #'
-#' init_state <- init_from_seed(
-#'   B_seed = NULL, data_matrix = ex$data_matrix,
-#'   N = 150, num_covariates = 7, M = 2,
-#'   a_mu = 0, b_mu = 2, a_tao = 2, b_tao = 1, alpha = 1,
-#'   a_gamma = 0.5, b_gamma = 0.5, a_gamma_1 = 2, b_gamma_1 = 1,
-#'   acyclic = TRUE, verbose = FALSE
+#' @examples
+#' # Generate synthetic DAG data
+#' ex <- generates_examples_DAG(
+#'   num_covariates = 7,
+#'   N = 150,
+#'   M_input = 2,
+#'   prob_sparsity = 0.9,
+#'   seed_input = 21
 #' )
 #'
-#' fit <- do.call(BayesDAG, c(
-#'   list(data_matrix = ex$data_matrix, M = 2, num_iter = 2000),
-#'   bayes_init_args(init_state)
-#' ))
+#' # Construct an initial state from an empty graph
+#' init_state <- init_from_seed(
+#'   B_seed = NULL,
+#'   data_matrix = ex$data_matrix,
+#'   N = 150,
+#'   num_covariates = 7,
+#'   M = 2,
+#'   a_mu = 0,
+#'   b_mu = 2,
+#'   a_tao = 2,
+#'   b_tao = 1,
+#'   alpha = 1,
+#'   a_gamma = 0.5,
+#'   b_gamma = 0.5,
+#'   a_gamma_1 = 2,
+#'   b_gamma_1 = 1,
+#'   acyclic = TRUE,
+#'   verbose = FALSE
+#' )
+#'
+#' # Fit BayesDAG using the initialized parameters
+#' fit <- do.call(
+#'   BayesDAG,
+#'   c(
+#'     list(
+#'       data_matrix = ex$data_matrix,
+#'       M = 2,
+#'       num_iter = 2000
+#'     ),
+#'     bayes_init_args(init_state)
+#'   )
+#' )
 init_from_seed <- function(
     B_seed,
     data_matrix,
