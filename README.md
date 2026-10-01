@@ -5,6 +5,7 @@
 
 <!-- badges: start -->
 
+[![R-CMD-check](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Cyclinbayes is an R package implementing bayesian methods for estimating
@@ -721,7 +722,7 @@ N = 200
 num_covariates = 10
 M = 5
 num_iter = 100000
-burn_in_iterations = 70000
+burn_in_iterations = 80000
 
 
 #######################################
@@ -943,7 +944,7 @@ Adjacency_matrix_shd
 #>  [2,]    0    0    0    0    0    0    0    0    1     0
 #>  [3,]    0    0    0    0    0    0    1    0    0     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    0    0    0    0    0    0    0    0    0     0
+#>  [5,]    0    0    0    0    0    0    0    0    0     1
 #>  [6,]    0    0    0    0    0    0    0    0    0     0
 #>  [7,]    0    1    0    0    0    0    0    0    0     0
 #>  [8,]    0    0    0    0    0    0    0    0    0     0
@@ -962,7 +963,7 @@ Adjacency_matrix_custom
 #>  [2,]    0    0    0    0    0    0    0    0    1     0
 #>  [3,]    0    0    0    0    0    0    1    0    0     0
 #>  [4,]    0    0    0    0    0    0    0    0    0     0
-#>  [5,]    0    0    0    0    0    0    0    0    0     0
+#>  [5,]    0    0    0    0    0    0    0    0    0     1
 #>  [6,]    0    0    0    0    0    0    0    0    0     0
 #>  [7,]    0    1    0    0    0    0    0    0    0     0
 #>  [8,]    0    0    0    0    0    0    0    0    0     0
@@ -997,11 +998,11 @@ candidate DCG, such as the true graph.
 ``` r
 true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true)
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
-#> [1] 0.7012778
+#> [1] 0.70445
 ```
 
-The posterior probability of the true network motif is $0.7013$,
-indicating that the motif is present in approximately $70.1\%$ of the
+The posterior probability of the true network motif is $0.704$,
+indicating that the motif is present in approximately $70.4\%$ of the
 retained posterior graph samples. This suggests substantial posterior
 support for the underlying structural feature, even though the exact
 full graph structure may vary across posterior draws.

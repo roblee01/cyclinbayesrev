@@ -4,7 +4,7 @@
 #' structural equation model under the assumption that the causal graph is
 #' acyclic. Non-Gaussian errors are modeled using a finite normal mixture.
 #' The function returns posterior samples of the graph structure,
-#' causal-effect coefficients, mixture parameters, and sparsity parameters.
+#' causal effect coefficients, mixture parameters, and sparsity parameters.
 #'
 #' @param data_matrix Numeric matrix of dimension \eqn{N \times p}, where rows
 #'   correspond to observations and columns correspond to variables included

@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # cyclinbayes
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Cyclinbayes is an R package implementing bayesian methods for estimating both directed acyclic graphs (DAGs) and directed cyclic graphs (DCGs). The package provides full posterior inference for graph structures and causal effects using a hierarchical Bayesian model, allowing principled uncertainty quantification, edge inclusion probabilities, and credible intervals. 
