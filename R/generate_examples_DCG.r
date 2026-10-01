@@ -156,8 +156,8 @@ generates_examples_DCG <- function(num_covariates, N, M_input, prob_sparsity,
   ## 2. WEIGHTS: magnitude first, then an independent sign
   ## ------------------------------------------------------------------
   draw_w <- function(n) {
-    magnitude <- runif(n, mag_range[1], mag_range[2])
-    sign_draw <- rbinom(n, size = 1, prob = prob_positive)
+    magnitude <- stats::runif(n, mag_range[1], mag_range[2])
+    sign_draw <- stats::rbinom(n, size = 1, prob = prob_positive)
     ifelse(sign_draw == 1, 1, -1) * magnitude
   }
 
