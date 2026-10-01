@@ -123,7 +123,6 @@
 #'
 #' @export
 #'
-#'
 #' @examples
 #' # Run BayesDAG on the DAG example used in the README
 #'
