@@ -145,8 +145,8 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
   ## ------------------------------------------------------------------
   B <- .with_seed(seed_weights, function() {
     n_edge    <- length(edges)
-    magnitude <- runif(n_edge, mag_range[1], mag_range[2])
-    sign_draw <- rbinom(n_edge, size = 1, prob = prob_positive)
+    magnitude <- stats::runif(n_edge, mag_range[1], mag_range[2])
+    sign_draw <- stats::rbinom(n_edge, size = 1, prob = prob_positive)
     b         <- ifelse(sign_draw == 1, 1, -1) * magnitude
 
     Bw <- matrix(0, p, p)
@@ -177,11 +177,11 @@ generates_examples_DAG <- function(num_covariates, N, M_input, prob_sparsity,
         mixture = rnorm(1, mu_epsilon[kk], sigma_epsilon[kk]),
         ## same closed form (and same single runif draw) as VGAM::rlaplace
         laplace = {
-          u <- runif(1)
+          u <- stats::runif(1)
           laplace_location - sign(u - 0.5) * laplace_scale *
             (log(2) + if (u < 0.5) log(u) else log1p(-u))
         },
-        t = rt(1, t_df)
+        t = stats::rt(1, t_df)
       )
     }
   }
