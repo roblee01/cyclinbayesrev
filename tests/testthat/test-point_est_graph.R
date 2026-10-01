@@ -29,7 +29,8 @@ test_that("point_est_graph returns the SHD medoid", {
 
   estimate <- point_est_graph(
     posterior_graphs,
-    dist_type = "shd"
+    dist_type = "shd",
+    burn_in_frac = 0
   )
 
   expect_equal(estimate, A)
@@ -71,7 +72,8 @@ test_that("point_est_graph works with a custom distance", {
   estimate <- point_est_graph(
     posterior_graphs,
     dist_type = "custom",
-    dist_fun = custom_distance
+    dist_fun = custom_distance,
+    burn_in_frac = 0
   )
 
   expect_equal(estimate, A)
@@ -97,7 +99,8 @@ test_that("point_est_graph returns the only sampled graph", {
 
   estimate <- point_est_graph(
     posterior_graphs,
-    dist_type = "shd"
+    dist_type = "shd",
+    burn_in_frac = 0
   )
 
   expect_equal(estimate, A)
@@ -122,7 +125,8 @@ test_that("point_est_graph returns a square adjacency matrix", {
 
   estimate <- point_est_graph(
     posterior_graphs,
-    dist_type = "shd"
+    dist_type = "shd",
+    burn_in_frac = 0
   )
 
   expect_equal(dim(estimate), c(p, p))
@@ -141,7 +145,71 @@ test_that("point_est_graph rejects an unknown distance type", {
   expect_error(
     point_est_graph(
       posterior_graphs,
-      dist_type = "not_a_distance"
+      dist_type = "not_a_distance",
+      burn_in_frac = 0
     )
+  )
+})
+
+
+test_that("point_est_graph uses 75 percent burn-in by default", {
+
+  A <- matrix(
+    c(
+      0, 1, 0,
+      0, 0, 1,
+      0, 0, 0
+    ),
+    nrow = 3,
+    byrow = TRUE
+  )
+
+  B <- matrix(
+    c(
+      0, 1, 0,
+      0, 0, 0,
+      0, 0, 0
+    ),
+    nrow = 3,
+    byrow = TRUE
+  )
+
+  posterior_graphs <- rbind(
+    as.vector(A),
+    as.vector(A),
+    as.vector(A),
+    as.vector(B)
+  )
+
+  # With the default burn_in_frac = 0.75 and four supplied draws,
+  # only the fourth draw is retained for point estimation.
+  estimate <- point_est_graph(
+    posterior_graphs,
+    dist_type = "shd"
+  )
+
+  expect_equal(estimate, B)
+})
+
+
+test_that("point_est_graph validates burn_in_frac", {
+
+  A <- matrix(0, 3, 3)
+  posterior_graphs <- matrix(as.vector(A), nrow = 1)
+
+  expect_error(
+    point_est_graph(
+      posterior_graphs,
+      burn_in_frac = -0.1
+    ),
+    "burn_in_frac"
+  )
+
+  expect_error(
+    point_est_graph(
+      posterior_graphs,
+      burn_in_frac = 1
+    ),
+    "burn_in_frac"
   )
 })
