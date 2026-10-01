@@ -63,7 +63,7 @@
 #' burn_in_iterations <- 1000  # requested burn-in
 #'
 #' # True DAG and data
-#' truth <- generate_dag(num_covariates, edge_prob = 0.15,
+#' truth <- generates_examples_DAG(num_covariates, edge_prob = 0.15,
 #'                       mag_range = c(0.4, 0.9))
 #' Adjacency_matrix_true <- truth$E
 #'

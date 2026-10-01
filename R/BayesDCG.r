@@ -63,7 +63,7 @@
 #' num_iter <- 5000       # MCMC iterations
 #'
 #' # True cyclic graph and data
-#' truth <- generate_dcg(num_covariates, edge_prob = 0.15, n_cycles = 2,
+#' truth <- generates_examples_DCG(num_covariates, edge_prob = 0.15, n_cycles = 2,
 #'                       mag_range = c(0.4, 0.9))
 #' Adjacency_matrix_true <- truth$E
 #'
