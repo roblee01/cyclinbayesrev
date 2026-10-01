@@ -130,7 +130,6 @@ Adjacency_matrix_true <- example_list$Adjacency_matrix_true
 Causal_effect_matrix_true <- example_list$Causal_effect_matrix_true
 Z_matrix_true <- example_list$Z_matrix_true
 
-\donttest{
 # Fit the Bayesian DAG model
 results_list <- BayesDAG(
   data_matrix,
@@ -176,5 +175,4 @@ PIP_matrix
 
 # Inspect retained log-likelihood values
 head(results_list$log_likelihood_list)
-}
 }

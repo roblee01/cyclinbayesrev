@@ -137,7 +137,6 @@ rho_true <- example_list$rho
 cycles_true
 rho_true
 
-\donttest{
 # Fit the Bayesian DCG model
 results_list <- BayesDCG(
   data_matrix,
@@ -180,5 +179,4 @@ PIP_matrix
 
 # Inspect retained log-likelihood values
 head(results_list$log_likelihood_list)
-}
 }
