@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_examples_DCG.r
 \name{generates_examples_DCG}
 \alias{generates_examples_DCG}
-\title{Generate synthetic DCG example data}
+\title{Generate synthetic DCG example data (helper function)}
 \usage{
 generates_examples_DCG(
   num_covariates,
@@ -26,65 +26,113 @@ generates_examples_DCG(
 
 \item{M_input}{Integer. Number of components in the error mixture.}
 
-\item{prob_sparsity}{Numeric in (0, 1). Probability that an ordered pair has
-NO edge, so the target edge density is \code{1 - prob_sparsity}.}
+\item{prob_sparsity}{Numeric in (0,1). Probability that an ordered
+pair has no edge, so the target edge density is
+\code{1 - prob_sparsity}.}
 
-\item{seed_input}{Integer. Random seed, for reproducibility.}
+\item{seed_input}{Integer. Random seed for reproducibility.}
 
-\item{n_cycles}{Integer. Number of vertex-disjoint cycles. The default, NULL,
-picks a value that fits in \eqn{p} vertices given \code{len_range}.}
+\item{n_cycles}{Integer. Number of vertex-disjoint cycles.
+The default, NULL, selects a value that fits within
+\eqn{p} vertices given \code{len_range}.}
 
 \item{len_range}{Length-2 numeric. Range of cycle lengths.}
 
 \item{mag_range}{Length-2 numeric. Range of absolute edge weights.}
 
-\item{prob_positive}{Numeric in \eqn{[0,1]}. Probability an edge weight is positive.}
+\item{prob_positive}{Numeric in \eqn{[0,1]}. Probability that
+an edge weight is positive.}
 
-\item{tol_sing}{Numeric. Required margin on \eqn{\min_m |1 - w_m|}.}
+\item{tol_sing}{Numeric. Required margin on
+\eqn{\min_m |1-w_m|}.}
 
-\item{rho_max}{Numeric. Upper bound required on the spectral radius.}
+\item{rho_max}{Numeric. Upper bound on the spectral radius.}
 
-\item{max_tries}{Integer. Maximum weight redraws before giving up.}
+\item{max_tries}{Integer. Maximum number of weight redraws.}
 }
 \value{
-A list containing
+A list containing simulated observations and the corresponding
+true model parameters:
 \describe{
-\item{data_matrix}{\eqn{N \times p} data matrix.}
-\item{Adjacency_matrix_true}{\eqn{p \times p} adjacency matrix, entry
-\eqn{(i,j)} nonzero when \eqn{j} is a parent of \eqn{i}.}
-\item{Causal_effect_matrix_true}{\eqn{p \times p} coefficient matrix \eqn{B}.}
-\item{Z_matrix_true}{\eqn{(pN) \times M} indicator matrix of true mixture
-memberships, in the layout used by \code{init_Z}.}
-\item{cycles}{List of the node sets forming each cycle.}
-\item{rho}{Spectral radius of \eqn{B}.}
+\item{data_matrix}{
+\eqn{N \times p} simulated data matrix.
+}
+\item{Adjacency_matrix_true}{
+\eqn{p \times p} true adjacency matrix, where entry
+\eqn{(i,j)} is nonzero when \eqn{j} is a parent of \eqn{i}.
+}
+\item{Causal_effect_matrix_true}{
+\eqn{p \times p} true causal-effect coefficient matrix
+\eqn{B}.
+}
+\item{Z_matrix_true}{
+\eqn{(pN) \times M} indicator matrix of true mixture
+memberships, in the layout used by \code{init_Z}.
+}
+\item{cycles}{
+List of node sets forming the generated directed cycles.
+}
+\item{rho}{
+Spectral radius of the generated causal-effect matrix.
+}
 }
 }
 \description{
-Simulates data from a randomly generated sparse directed cyclic graph (DCG).
-The graph is built as a set of vertex-disjoint cycles plus acyclic edges
-between cycle blocks, then given weights whose magnitudes are drawn from
-\code{mag_range} with independently drawn signs. Errors come from a finite
-normal mixture, so the model is identified without a Gaussian assumption.
+Helper function for generating reproducible synthetic data from a sparse
+directed cyclic graph (DCG). It is primarily provided for the package
+README, function examples, tests, and simulation studies.
 
-This is not an estimation or causal discovery method. It exists to produce
-example data sets for demonstrations, tests and simulation studies.
+This function is not a causal discovery or graph-estimation procedure.
+It generates simulated data with known graph structures and causal
+coefficients so that users can demonstrate and evaluate the Bayesian
+causal discovery methods implemented in the package.
+To estimate cyclic causal structures from observed data, use
+\code{\link{BayesDCG}}.
 }
 \details{
-Because every cycle is vertex-disjoint, the determinant and spectral radius
-have closed forms: with \eqn{w_m} the product of the weights around cycle
-\eqn{m} of length \eqn{L_m},
-\deqn{\det(I - B) = \prod_m (1 - w_m), \qquad \rho(B) = \max_m |w_m|^{1/L_m}.}
-Weights are redrawn until \eqn{\min_m |1 - w_m| \ge} \code{tol_sing} and
-\eqn{\rho(B) <} \code{rho_max}, so \eqn{(I - B)^{-1}} is stable and well
-conditioned.
+The function constructs a sparse DCG consisting of vertex-disjoint
+directed cycles and acyclic edges between cycle blocks.
+Nonzero causal-effect coefficients are generated with magnitudes
+drawn from \code{mag_range} and independently assigned positive
+or negative signs. Structural errors are generated from a finite
+Gaussian mixture distribution.
+
+The generated adjacency matrix and causal-effect matrix are returned
+as known ground truth, allowing users to compare the estimated
+results from \code{\link{BayesDCG}} with the underlying simulated
+causal structure.
+
+Because every cycle is vertex-disjoint, the determinant and spectral
+radius have closed forms. Let \eqn{w_m} denote the product of the
+coefficients around cycle \eqn{m} of length \eqn{L_m}:
+
+\deqn{\det(I-B)=\prod_m(1-w_m), \qquad
+      \rho(B)=\max_m |w_m|^{1/L_m}.}
+
+Weights are redrawn until \eqn{\min_m |1-w_m| \ge}
+\code{tol_sing} and \eqn{\rho(B) <} \code{rho_max}.
+These restrictions ensure that the generated coefficient matrix
+satisfies the specified stability and nonsingularity conditions.
 }
 \examples{
-ex <- generates_examples_DCG(num_covariates = 7, N = 250, M_input = 2,
-                             prob_sparsity = 0.9, seed_input = 21)
+# Generate synthetic DCG data for demonstration
+ex <- generates_examples_DCG(
+  num_covariates = 7,
+  N = 250,
+  M_input = 2,
+  prob_sparsity = 0.9,
+  seed_input = 21
+)
+
+# Inspect the generated data and true graph
 dim(ex$data_matrix)
 sum(ex$Adjacency_matrix_true)
+
+# Inspect the spectral radius
 ex$rho
 }
 \seealso{
-\code{\link{generates_examples_DAG}} for the acyclic version.
+\code{\link{generates_examples_DAG}} for generating synthetic
+acyclic data, and \code{\link{BayesDCG}} for Bayesian causal
+discovery in cyclic models.
 }
