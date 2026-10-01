@@ -13,11 +13,16 @@ Imports:
     Rcpp,
     igraph,
     HDInterval,
-    ggplot2
+    ggplot2,
+    methods
 LinkingTo:
     Rcpp,
     RcppArmadillo
-Suggests: testthat (>= 3.0.0), roxygen2, SID
+Suggests: 
+    testthat (>= 3.0.0),
+    roxygen2,
+    SID,
+    pcalg
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 ByteCompile: true
