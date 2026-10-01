@@ -2,7 +2,7 @@
 % Please edit documentation in R/BayesDAG.r
 \name{BayesDAG}
 \alias{BayesDAG}
-\title{Bayesian Lingam Causal Discovery}
+\title{Bayesian LiNGAM Causal Discovery}
 \usage{
 BayesDAG(
   data_matrix,
@@ -31,77 +31,128 @@ BayesDAG(
 )
 }
 \arguments{
-\item{data_matrix}{Numeric matrix of dimension \eqn{N \times p}, where rows correspond to observations and columns correspond to variables (features) included in the causal graph.}
+\item{data_matrix}{Numeric matrix of dimension \eqn{N \times p}, where rows
+correspond to observations and columns correspond to variables included
+in the causal graph.}
 
-\item{a_mu}{Hyperparameter for the mean of the normal prior on each mixture component mean \eqn{\mu_k} in the error mixture model (location parameter). Default value is 0.}
+\item{a_mu}{Numeric. Mean parameter of the normal prior on each
+mixture-component mean. Default is 0.}
 
-\item{b_mu}{Hyperparameter for the variance of the normal prior on each mixture component mean \eqn{\mu_k} (controls how tightly the component means are shrunk toward \code{a_mu}).
-Default value is 2.}
+\item{b_mu}{Numeric. Variance parameter of the normal prior on each
+mixture-component mean. Default is 2.}
 
-\item{a_gamma}{First shape parameter of the Beta prior on the edge-inclusion probability \eqn{\gamma} (probability that there is an edge from one node to another).
-Default value is 0.5.}
+\item{a_gamma}{Numeric. First shape parameter of the Beta prior on the
+edge-inclusion probability \eqn{\gamma}. Default is 0.5.}
 
-\item{b_gamma}{Second shape parameter of the Beta prior on the edge-inclusion probability \eqn{\gamma}. Along with \code{a_gamma} this controls the expected sparsity of the graph.
-Default value is 0.5.}
+\item{b_gamma}{Numeric. Second shape parameter of the Beta prior on the
+edge-inclusion probability \eqn{\gamma}. Default is 0.5.}
 
-\item{a_tao}{Shape parameter of the inverse gamma prior on each mixture component variance in the error distribution (controls the prior tail heaviness for component variances).
-Default value is 2.}
+\item{a_tao}{Numeric. Shape parameter of the inverse-gamma prior on the
+mixture-component variances. Default is 2.}
 
-\item{b_tao}{Scale parameter of the inverse gamma prior on each mixture component variance in the error distribution (sets the typical size of the component variances).
-Default value is 1.}
+\item{b_tao}{Numeric. Scale parameter of the inverse-gamma prior on the
+mixture-component variances. Default is 1.}
 
-\item{a_og_tao}{Shape parameter of the proposal distribution used when updating the variance parameters \eqn{\tau} associated with adjacency matrix entries in the MCMC algorithm.
-Default value is 0.01.}
+\item{a_og_tao}{Numeric. Shape parameter of the proposal distribution used
+for variance-related updates in the MCMC algorithm. Default is 0.01.}
 
-\item{b_og_tao}{Scale parameter of the proposal distribution used when updating the variance parameters \eqn{\tau} associated with adjacency matrix entries in the MCMC algorithm.
-Default value is 0.01.}
+\item{b_og_tao}{Numeric. Scale parameter of the proposal distribution used
+for variance-related updates in the MCMC algorithm. Default is 0.01.}
 
-\item{a_gamma_1}{Shape parameter of the inverse gamma prior on the slab variance \eqn{\gamma_1} in the conditional spike and slab prior \eqn{B_{ij}\mid E_{ij},
-\gamma_1 \sim (1-E_{ij})\delta_0 + E_{ij}N(0,\gamma_1)}. Default value is 2.}
+\item{a_gamma_1}{Numeric. Shape parameter of the inverse-gamma prior on the
+slab variance \eqn{\gamma_1} in the spike-and-slab prior for the
+causal-effect coefficients. Default is 2.}
 
-\item{b_gamma_1}{Scale parameter of the inverse gamma prior on \eqn{\gamma_1}. Default value is 1.}
+\item{b_gamma_1}{Numeric. Scale parameter of the inverse-gamma prior on the
+slab variance \eqn{\gamma_1}. Default is 1.}
 
-\item{alpha}{Concentration parameter of the Dirichlet prior on the mixture weights for the normal mixture error distribution (controls how evenly the mixture components are used).
-Default value is 1}
+\item{alpha}{Numeric. Concentration parameter of the Dirichlet prior on the
+mixture weights. Default is 1.}
 
-\item{M}{Integer giving the maximum number of mixture components allowed in the normal mixture error model.}
+\item{M}{Integer. Maximum number of mixture components in the finite normal
+mixture error model.}
 
-\item{num_iter}{Integer giving the total number of MCMC iterations for the \code{BayesDAG} algorithm.}
+\item{num_iter}{Integer. Total number of MCMC iterations.}
 
-\item{burn_in_iterations}{Integer giving the requested number of initial MCMC iterations to discard. Because \code{BayesDAG} uses an annealing period during early sampling, the effective burn-in is automatically increased to at least 20\\% of \code{num_iter} when a smaller value is supplied. Only post-burn-in posterior draws are returned. Default value is 0.}
+\item{burn_in_iterations}{Integer. Requested number of initial MCMC
+iterations to discard. Because \code{BayesDAG} uses an annealing period
+during early sampling, the effective burn-in is automatically increased
+to at least 20 percent of \code{num_iter} when a smaller value is
+supplied. Only retained post-burn-in posterior draws are returned.
+Default is 0.}
 
-\item{init_Adjacency}{Optional \eqn{p \times p} matrix giving the starting adjacency matrix. Entry \eqn{(i,j)} is 1 when \eqn{j} is a parent of \eqn{i}. The diagonal is ignored. Must be acyclic, since this sampler's edge moves assume a DAG. Defaults to NULL, which starts from the prior/random draw.}
+\item{init_Adjacency}{Optional \eqn{p \times p} matrix giving the initial
+adjacency matrix. Entry \eqn{(i,j)} is 1 when node \eqn{j} is a parent
+of node \eqn{i}. The diagonal is ignored and the initial graph must be
+acyclic. Defaults to \code{NULL}.}
 
-\item{init_Causal_effect}{Optional \eqn{p \times p} matrix of starting coefficients. Entries where \code{init_Adjacency} is 0 are set to 0. Defaults to NULL.}
+\item{init_Causal_effect}{Optional \eqn{p \times p} matrix giving the
+initial causal-effect coefficients. Entries corresponding to absent
+edges in \code{init_Adjacency} are set to zero. Defaults to \code{NULL}.}
 
-\item{init_mu}{Optional \eqn{p \times M} matrix of starting mixture-component means. Defaults to NULL.}
+\item{init_mu}{Optional \eqn{p \times M} matrix giving the initial
+mixture-component means. Defaults to \code{NULL}.}
 
-\item{init_tao}{Optional \eqn{p \times M} matrix of starting mixture-component variances. Defaults to NULL.}
+\item{init_tao}{Optional \eqn{p \times M} matrix giving the initial
+mixture-component variances. Defaults to \code{NULL}.}
 
-\item{init_pi}{Optional \eqn{p \times M} matrix of starting mixture weights; rows should sum to 1. Defaults to NULL.}
+\item{init_pi}{Optional \eqn{p \times M} matrix giving the initial mixture
+weights. Each row should sum to 1. Defaults to \code{NULL}.}
 
-\item{init_Z}{Optional \eqn{(p N) \times M} indicator matrix of starting component memberships, stacked variable by variable, with one 1 per row. Defaults to NULL.}
+\item{init_Z}{Optional \eqn{(pN) \times M} indicator matrix giving the
+initial mixture-component allocations, stacked variable by variable.
+Each row should contain one component indicator equal to 1.
+Defaults to \code{NULL}.}
 
-\item{init_gamma_1}{Optional starting value for the slab variance \eqn{\gamma_1}. Defaults to NULL.}
+\item{init_gamma_1}{Optional numeric value giving the initial slab variance
+\eqn{\gamma_1}. Defaults to \code{NULL}.}
 
-\item{init_gamma_result}{Optional starting value for the edge-inclusion probability \eqn{\gamma}. Defaults to NULL.}
+\item{init_gamma_result}{Optional numeric value giving the initial
+edge-inclusion probability \eqn{\gamma}. Defaults to \code{NULL}.}
 }
 \value{
-A list containing only retained post-burn-in posterior draws:
+A list containing retained post-burn-in posterior draws:
 \describe{
-\item{Adjacency_matrix_list}{retained draws of the \eqn{p \times p} adjacency matrix, one \code{as.vector()} per row}
-\item{Causal_effect_matrix_list}{retained draws of the coefficient matrix, same layout}
-\item{gamma_list, gamma_1_list}{retained draws of the edge-inclusion probability and the slab variance}
-\item{mu_matrix_list, tao_matrix_list, pi_matrix_list}{retained draws of the error-mixture means, variances and weights}
-\item{log_likelihood_list}{log-likelihood values for the retained draws}
-\item{first_stored_iteration}{original MCMC iteration corresponding to the first returned draw}
-\item{n_stored}{number of retained posterior draws}
+\item{Adjacency_matrix_list}{
+Retained draws of the \eqn{p \times p} adjacency matrix, with one
+vectorized adjacency matrix per row.
+}
+\item{Causal_effect_matrix_list}{
+Retained draws of the \eqn{p \times p} causal-effect matrix, with one
+vectorized matrix per row.
+}
+\item{gamma_list}{
+Retained draws of the edge-inclusion probability \eqn{\gamma}.
+}
+\item{gamma_1_list}{
+Retained draws of the slab variance \eqn{\gamma_1}.
+}
+\item{mu_matrix_list}{
+Retained draws of the mixture-component means.
+}
+\item{tao_matrix_list}{
+Retained draws of the mixture-component variances.
+}
+\item{pi_matrix_list}{
+Retained draws of the mixture weights.
+}
+\item{log_likelihood_list}{
+Log-likelihood values corresponding to the retained posterior draws.
+}
+\item{first_stored_iteration}{
+Original MCMC iteration corresponding to the first returned draw.
+}
+\item{n_stored}{
+Number of retained posterior draws.
+}
 }
 }
 \description{
-Fits a Bayesian Collapsed Gibbs sampler of the LiNGAM model with non-Gaussian errors modeled
-via a finite normal mixture, returning posterior samples for the graph
-structure and causal effect coefficients.
+Fits a Bayesian collapsed Gibbs sampler for a linear non-Gaussian
+structural equation model under the assumption that the causal graph is
+acyclic. Non-Gaussian errors are modeled using a finite normal mixture.
+The function returns posterior samples of the graph structure,
+causal-effect coefficients, mixture parameters, and sparsity parameters.
 }
 \examples{
 # Run BayesDAG on the DAG example used in the README
@@ -130,7 +181,6 @@ Adjacency_matrix_true <- example_list$Adjacency_matrix_true
 Causal_effect_matrix_true <- example_list$Causal_effect_matrix_true
 Z_matrix_true <- example_list$Z_matrix_true
 
-# Fit the Bayesian DAG model
 results_list <- BayesDAG(
   data_matrix,
   a_mu = 0,
@@ -149,22 +199,17 @@ results_list <- BayesDAG(
   burn_in_iterations = burn_in_iterations
 )
 
-# Information about the retained posterior sample
 results_list$first_stored_iteration
 results_list$n_stored
 
-# Select a representative posterior graph using
-# posterior expected Structural Hamming Distance
 Adjacency_matrix_est <- point_est_graph(
   results_list$Adjacency_matrix_list,
   dist_type = "shd"
 )
 
-# Compare the true and estimated graph structures
 Adjacency_matrix_true
 Adjacency_matrix_est
 
-# Posterior edge-inclusion probabilities
 PIP_matrix <- matrix(
   colMeans(results_list$Adjacency_matrix_list),
   nrow = num_covariates,
@@ -172,7 +217,5 @@ PIP_matrix <- matrix(
 )
 
 PIP_matrix
-
-# Inspect retained log-likelihood values
 head(results_list$log_likelihood_list)
 }
