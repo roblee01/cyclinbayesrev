@@ -15,8 +15,8 @@
 #'   \eqn{p \times p} adjacency matrix.
 #' @param level Numeric in (0,1). Credible level for interval summaries (only used when
 #'   \code{adjacency = FALSE}).
-#' @param adjacency Logical. If \code{TRUE}, compute adjacency-specific summaries
-#'   (posterior inclusion probabilities and graph-structure frequencies). If \code{FALSE},
+#' @param adjacency Logical. If \code{TRUE}, compute adjacency specific summaries
+#'   (posterior inclusion probabilities and graph structure frequencies). If \code{FALSE},
 #'   compute interval summaries for each column of \code{posterior_matrix}.
 #'
 #' @return
@@ -40,7 +40,9 @@
 #'
 #' @examples
 #'
+#' #######################################
 #' # Run BayesDAG simulated example
+#' #######################################
 #'
 #' N = 300
 #' num_covariates = 10
@@ -48,100 +50,285 @@
 #' num_iter = 1000
 #'
 #'
-#' example_list = generates_examples_DAG(num_covariates, N, M, 0.9, 21)
+#' #######################################
+#' # Generate DAG example
+#' #######################################
+#'
+#' example_list = generates_examples_DAG(
+#'   num_covariates, N, M, 0.9, 21
+#' )
 #'
 #' data_matrix = example_list$data_matrix
 #' Adjacency_matrix_true = example_list$Adjacency_matrix_true
+#' Causal_effect_matrix_true = example_list$Causal_effect_matrix_true
+#'
+#'
+#' #######################################
+#' # Hyperparameter setup
+#' #######################################
 #'
 #' params = list(
-#' a_mu = 0,
-#' b_mu = 2,
-#' a_gamma = 0.5,
-#' b_gamma = 0.5,
-#' a_gamma_1 = 2,
-#' b_gamma_1 = 1,
-#' a_tao = 2,
-#' b_tao = 1,
-#' a_og_tao = 0.01,
-#' b_og_tao = 0.01,
-#' alpha = 1
+#'   a_mu = 0,
+#'   b_mu = 2,
+#'   a_gamma = 0.5,
+#'   b_gamma = 0.5,
+#'   a_gamma_1 = 2,
+#'   b_gamma_1 = 1,
+#'   a_tao = 2,
+#'   b_tao = 1,
+#'   a_og_tao = 0.01,
+#'   b_og_tao = 0.01,
+#'   alpha = 1
 #' )
 #'
 #'
+#' #######################################
+#' # Run Bayesian DAG sampler
+#' #######################################
+#'
 #' result_list = BayesDAG(
-#' data_matrix,
-#' params$a_mu,
-#' params$b_mu,
-#' params$a_gamma,
-#' params$b_gamma,
-#' params$a_tao,
-#' params$b_tao,
-#' params$a_og_tao,
-#' params$b_og_tao,
-#' params$a_gamma_1,
-#' params$b_gamma_1,
-#' params$alpha,
-#' M,
-#' num_iter
-#' ) # Runs the Acyclic algorithm
+#'   data_matrix,
+#'   params$a_mu,
+#'   params$b_mu,
+#'   params$a_gamma,
+#'   params$b_gamma,
+#'   params$a_tao,
+#'   params$b_tao,
+#'   params$a_og_tao,
+#'   params$b_og_tao,
+#'   params$a_gamma_1,
+#'   params$b_gamma_1,
+#'   params$alpha,
+#'   M,
+#'   num_iter
+#' )
 #'
 #'
+#' #######################################
 #' # Extract posterior outputs
-#' Adjacency_matrix_means = result_list$Adjacency_matrix_means
-#' Adjacency_matrix_list = result_list$Adjacency_matrix_list
-#' Causal_effect_matrix_list = result_list$Causal_effect_matrix_list
+#' #######################################
+#'
+#' Adjacency_matrix_list =
+#'   result_list$Adjacency_matrix_list
+#'
+#' Causal_effect_matrix_list =
+#'   result_list$Causal_effect_matrix_list
+#'
 #' gamma_list = result_list$gamma_list
 #' gamma_1_list = result_list$gamma_1_list
 #' mu_matrix_list = result_list$mu_matrix_list
 #' tao_matrix_list = result_list$tao_matrix_list
 #' pi_matrix_list = result_list$pi_matrix_list
 #'
-#'Causal_effect_matrix_summary = posterior_interval_est(Causal_effect_matrix_list, level = 0.95)
-#'hpd_matrix_acyclic = Causal_effect_matrix_summary$hpd_matrix
-#'ci_matrix_acyclic = Causal_effect_matrix_summary$ci_matrix
 #'
-#'#######################################
-#'# Extracting nonzero HPD intervals
-#'#######################################
-#'par(mfrow=c(2,1))
+#' #######################################
+#' # Posterior interval estimation
+#' #######################################
 #'
-#'nonzero_cols = which(colSums(hpd_matrix_acyclic) != 0)
-#'num_non_zero_coef = length(nonzero_cols)
-#'data_1 = data.frame(cbind(1:num_non_zero_coef,t(hpd_matrix_acyclic[,which(colSums(hpd_matrix_acyclic)!=0)])))
+#' Causal_effect_matrix_summary =
+#'   posterior_interval_est(
+#'     Causal_effect_matrix_list,
+#'     level = 0.95
+#'   )
 #'
-#'nonzero_cols = which(colSums(hpd_matrix_acyclic) != 0)
+#' hpd_matrix_acyclic =
+#'   Causal_effect_matrix_summary$hpd_matrix
 #'
-#'# subset and transpose so each row = coefficient
-#'hpd_sub = t(hpd_matrix_acyclic[, nonzero_cols, drop = FALSE])
-#'colnames(hpd_sub) = c("lower", "upper")  # row1 = lower, row2 = upper
-#'
-#'data_1 = as.data.frame(hpd_sub)
-#'data_1$x = factor(seq_len(nrow(data_1)))
-#'
-#'data_1$mid = (data_1$lower + data_1$upper) / 2
+#' ci_matrix_acyclic =
+#'   Causal_effect_matrix_summary$ci_matrix
 #'
 #'
-#'ggplot2::ggplot(data_1, ggplot2::aes(x = x, y = mid)) +
-#'  ggplot2::geom_point(size = 3) +
-#'  ggplot2::geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
-#'  ggplot2::geom_errorbar(ggplot2::aes(ymin = lower, ymax = upper), width = 0.2) +
-#'  ggplot2::labs(y = "Causal Weight Estimate with HPD Interval", x = "Nonzero causal effect coefficient (index)") +
-#'  ggplot2::theme_minimal()
+#' #######################################
+#' # Identify true nonzero causal effects
+#' #######################################
+#'
+#' # R vectorizes matrices column by column
+#' true_vec = as.vector(Causal_effect_matrix_true)
+#'
+#' # Indices of truly nonzero coefficients
+#' true_idx = which(true_vec != 0)
+#'
+#' # Convert vector indices to matrix coordinates
+#' coords = arrayInd(
+#'   true_idx,
+#'   .dim = dim(Causal_effect_matrix_true)
+#' )
+#'
+#' # B_ij represents the causal effect j -> i
+#' true_effects_df = data.frame(
+#'   coef_index = true_idx,
+#'   child = coords[, 1],
+#'   parent = coords[, 2],
+#'   truth = true_vec[true_idx]
+#' )
+#'
+#' true_effects_df$edge = paste0(
+#'   true_effects_df$parent,
+#'   " -> ",
+#'   true_effects_df$child
+#' )
 #'
 #'
-#'#######################################
-#'# Extracting nonzero Credible intervals
-#'#######################################
-#'data_2 = data.frame(ci_matrix_acyclic[which(rowSums(ci_matrix_acyclic)!=0),])
-#'x = factor(1:nrow(data_2))
-#'data_2 = cbind(x,data_2)
+#' #######################################
+#' # Check posterior interval dimensions
+#' #######################################
 #'
-#' ggplot2::ggplot(data_2, ggplot2::aes(x = x, y = X2)) +
+#' if (ncol(hpd_matrix_acyclic) != length(true_vec)) {
+#'   stop("HPD dimensions do not match true effects.")
+#' }
+#'
+#' if (nrow(ci_matrix_acyclic) != length(true_vec)) {
+#'   stop("CI dimensions do not match true effects.")
+#' }
+#'
+#'
+#' #######################################
+#' # HPD intervals for true causal effects
+#' #######################################
+#'
+#' # Extract intervals for truly nonzero effects
+#' hpd_sub = t(
+#'   hpd_matrix_acyclic[
+#'     , true_idx, drop = FALSE
+#'   ]
+#' )
+#'
+#' colnames(hpd_sub) = c("lower", "upper")
+#'
+#' data_hpd = data.frame(
+#'   edge = true_effects_df$edge,
+#'   truth = true_effects_df$truth,
+#'   lower = hpd_sub[, "lower"],
+#'   upper = hpd_sub[, "upper"]
+#' )
+#'
+#' # Posterior estimate: midpoint of HPD interval
+#' data_hpd$estimate = (
+#'   data_hpd$lower + data_hpd$upper
+#' ) / 2
+#'
+#' # Preserve the order of causal edges
+#' data_hpd$edge = factor(
+#'   data_hpd$edge,
+#'   levels = unique(data_hpd$edge)
+#' )
+#'
+#'
+#' #######################################
+#' # Plot 95% HPD intervals
+#' #######################################
+#'
+#' ggplot2::ggplot(
+#'   data_hpd,
+#'   ggplot2::aes(x = edge, y = estimate)
+#' ) +
+#'   ggplot2::geom_errorbar(
+#'     ggplot2::aes(
+#'       ymin = lower,
+#'       ymax = upper
+#'     ),
+#'     width = 0.2
+#'   ) +
 #'   ggplot2::geom_point(size = 3) +
-#'   ggplot2::geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
-#'   ggplot2::geom_errorbar(ggplot2::aes(ymin = X1, ymax = X3), width = 0.2) +  # just X1/X3
-#'   ggplot2::labs(y = "Causal Weight Estimate with 95% CI", x = "Nonzero causal effect coefficient (index)") +
-#'   ggplot2::theme_minimal()
+#'   ggplot2::geom_point(
+#'     ggplot2::aes(y = truth),
+#'     shape = 4,
+#'     size = 4,
+#'     stroke = 1.3,
+#'     color = "red"
+#'   ) +
+#'   ggplot2::labs(
+#'     x = "True Causal Edge",
+#'     y = "Causal Effect",
+#'     title = "Posterior Estimates with 95% HPD Intervals"
+#'   ) +
+#'   ggplot2::theme_minimal() +
+#'   ggplot2::theme(
+#'     axis.text.x = ggplot2::element_text(
+#'       angle = 45,
+#'       hjust = 1
+#'     )
+#'   )
+#'
+#'
+#' #######################################
+#' # Equal-tailed credible intervals
+#' #######################################
+#'
+#' # Columns contain lower, median, upper
+#' ci_sub = ci_matrix_acyclic[
+#'   true_idx, , drop = FALSE
+#' ]
+#'
+#' data_ci = data.frame(
+#'   edge = true_effects_df$edge,
+#'   truth = true_effects_df$truth,
+#'   lower = ci_sub[, 1],
+#'   estimate = ci_sub[, 2],
+#'   upper = ci_sub[, 3]
+#' )
+#'
+#' # Preserve the order of causal edges
+#' data_ci$edge = factor(
+#'   data_ci$edge,
+#'   levels = unique(data_ci$edge)
+#' )
+#'
+#'
+#' #######################################
+#' # Plot 95% equal-tailed credible intervals
+#' #######################################
+#'
+#' ggplot2::ggplot(
+#'   data_ci,
+#'   ggplot2::aes(x = edge, y = estimate)
+#' ) +
+#'   ggplot2::geom_errorbar(
+#'     ggplot2::aes(
+#'       ymin = lower,
+#'       ymax = upper
+#'     ),
+#'     width = 0.2
+#'   ) +
+#'   ggplot2::geom_point(size = 3) +
+#'   ggplot2::geom_point(
+#'     ggplot2::aes(y = truth),
+#'     shape = 4,
+#'     size = 4,
+#'     stroke = 1.3,
+#'     color = "red"
+#'   ) +
+#'   ggplot2::labs(
+#'     x = "True Causal Edge",
+#'     y = "Causal Effect",
+#'     title = "Posterior Estimates with 95% Credible Intervals"
+#'   ) +
+#'   ggplot2::theme_minimal() +
+#'   ggplot2::theme(
+#'     axis.text.x = ggplot2::element_text(
+#'       angle = 45,
+#'       hjust = 1
+#'     )
+#'   )
+#'
+#'
+#' #######################################
+#' # Posterior interval coverage
+#' #######################################
+#'
+#' data_hpd$covered = (
+#'   data_hpd$truth >= data_hpd$lower &
+#'   data_hpd$truth <= data_hpd$upper
+#' )
+#'
+#' data_ci$covered = (
+#'   data_ci$truth >= data_ci$lower &
+#'   data_ci$truth <= data_ci$upper
+#' )
+#'
+#' # Proportion of true effects covered
+#' mean(data_hpd$covered)
+#' mean(data_ci$covered)
 
 posterior_interval_est = function(posterior_matrix, level, adjacency = FALSE){
 
