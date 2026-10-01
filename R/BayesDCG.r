@@ -5,7 +5,7 @@
 #'
 #' @details
 #' The sampler runs in two phases. Iterations up to \code{burn_in_iterations} are
-#' unconstrained; later iterations are restricted to graphs whose cycles are
+#' unconstrained. The later iterations are restricted to graphs whose cycles are
 #' vertex-disjoint, with a one-time projection at the handoff and an annealing
 #' window immediately after it. Draws from the unconstrained and annealing
 #' phases are not from the target posterior, so they are run but not stored:
@@ -58,8 +58,8 @@
 #' N <- 200
 #' num_covariates <- 10
 #' M <- 5
-#' num_iter <- 5000
-#' burn_in_iterations <- 3500
+#' num_iter <- 10000
+#' burn_in_iterations <- 5000
 #'
 #' # Generate the same DCG example used in the README
 #' example_list <- generates_examples_DCG(
