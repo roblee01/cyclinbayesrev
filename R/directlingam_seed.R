@@ -1,30 +1,47 @@
 #' Seed coefficient matrix from DirectLiNGAM
 #'
 #' @description
-#' Estimates a coefficient matrix to use as a warm start for
+#' Estimates an initial coefficient matrix for use with
 #' \code{\link{BayesDCG}} or \code{\link{BayesDAG}}, via
-#' \code{\link[pcalg]{lingam}} when \pkg{pcalg} is installed and a built-in
-#' implementation otherwise.
+#' \code{\link[pcalg]{lingam}} when \pkg{pcalg} is installed
+#' and a built-in implementation otherwise.
 #'
 #' @details
-#' The result is intended only as a starting point: it is passed to
-#' \code{\link{init_from_seed}}, which prunes small coefficients, rescales for
-#' stability and fits the error mixture around the implied residuals.
+#' This function is primarily provided as a helper for the
+#' reproducible examples in the package README. It demonstrates
+#' how a preliminary coefficient estimate can be used to initialize
+#' the Bayesian samplers and is not intended as a standalone
+#' causal discovery procedure.
 #'
-#' The returned matrix follows the same convention as the samplers: entry
-#' \eqn{(i, j)} is the coefficient of variable \eqn{j} in the equation for
-#' variable \eqn{i}, so \eqn{x = Bx + e}.
+#' The resulting matrix is passed to \code{\link{init_from_seed}},
+#' which prunes small coefficients, rescales for stability, and
+#' initializes the error mixture using the implied residuals.
+#'
+#' The returned matrix follows the same convention as the samplers:
+#' entry \eqn{(i,j)} is the coefficient of variable \eqn{j}
+#' in the equation for variable \eqn{i}, so \eqn{x = Bx + e}.
 #'
 #' @param data_matrix \eqn{N \times p} numeric data matrix.
-#' @param use_pcalg Logical. Use \code{\link[pcalg]{lingam}} when \pkg{pcalg}
-#'   is available. Set FALSE to always use the built-in implementation.
+#' @param use_pcalg Logical. Use \code{\link[pcalg]{lingam}}
+#'   when \pkg{pcalg} is available. Set FALSE to always use
+#'   the built-in implementation.
 #'
 #' @return A \eqn{p \times p} coefficient matrix with a zero diagonal.
-#' @seealso \code{\link{directlingam_R}}, \code{\link{init_from_seed}}
+#'
+#' @seealso \code{\link{directlingam_R}},
+#'   \code{\link{init_from_seed}}
+#'
 #' @export
+#'
 #' @examples
-#' ex <- generates_examples_DAG(num_covariates = 6, N = 200, M_input = 2,
-#'                              prob_sparsity = 0.9, seed_input = 3)
+#' ex <- generates_examples_DAG(
+#'   num_covariates = 6,
+#'   N = 200,
+#'   M_input = 2,
+#'   prob_sparsity = 0.9,
+#'   seed_input = 3
+#' )
+#'
 #' B_seed <- directlingam_seed(ex$data_matrix)
 #' dim(B_seed)
 directlingam_seed <- function(data_matrix, use_pcalg = TRUE) {
