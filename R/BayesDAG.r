@@ -78,7 +78,6 @@
 #' Causal_effect_matrix_true <- example_list$Causal_effect_matrix_true
 #' Z_matrix_true <- example_list$Z_matrix_true
 #'
-#' \donttest{
 #' # Fit the Bayesian DAG model
 #' results_list <- BayesDAG(
 #'   data_matrix,
@@ -124,7 +123,6 @@
 #'
 #' # Inspect retained log-likelihood values
 #' head(results_list$log_likelihood_list)
-#' }
 
 BayesDAG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 0.5, b_gamma = 0.5,
                      a_tao = 2, b_tao = 1, a_og_tao = 0.01, b_og_tao = 0.01,

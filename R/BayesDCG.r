@@ -88,7 +88,6 @@
 #' cycles_true
 #' rho_true
 #'
-#' \donttest{
 #' # Fit the Bayesian DCG model
 #' results_list <- BayesDCG(
 #'   data_matrix,
@@ -131,7 +130,6 @@
 #'
 #' # Inspect retained log-likelihood values
 #' head(results_list$log_likelihood_list)
-#' }
 
 BayesDCG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 1, b_gamma = 20,
                      a_tao = 2, b_tao = 1, a_gamma_1 = 0.5, b_gamma_1 = 0.5,
