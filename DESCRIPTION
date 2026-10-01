@@ -13,12 +13,12 @@ Imports:
     Rcpp,
     igraph,
     HDInterval,
-    ggplot2,
     methods
 LinkingTo:
     Rcpp,
     RcppArmadillo
-Suggests: 
+Suggests:
+    ggplot2
     testthat (>= 3.0.0),
     roxygen2,
     SID,
