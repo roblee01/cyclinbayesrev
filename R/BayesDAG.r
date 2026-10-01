@@ -52,68 +52,79 @@
 #'
 #' @export
 #' @examples
-#' # Run BayesDAG on a simulated acyclic example
+#' # Run BayesDAG on the DAG example used in the README
 #'
-#' set.seed(21)
+#' N <- 200
+#' num_covariates <- 10
+#' M <- 5
+#' num_iter <- 5000
+#' burn_in_iterations <- 1000
 #'
-#' N <- 250               # sample size
-#' num_covariates <- 7    # number of features
-#' M <- 2                 # mixture components for the error distribution
-#' num_iter <- 5000       # total MCMC iterations
-#' burn_in_iterations <- 1000  # requested burn-in
+#' # Generate the same DAG example used in the README
+#' example_list <- generates_examples_DAG(
+#'   num_covariates = num_covariates,
+#'   N              = N,
+#'   M_input        = 2,
+#'   prob_sparsity  = 0.90,
+#'   seed_input     = 21,
+#'   mag_range      = c(0.4, 0.9),
+#'   prob_positive  = 0.5,
+#'   seed_structure = 1,
+#'   seed_weights   = 20
+#' )
 #'
-#' # True DAG and data
-#' truth <- generates_examples_DAG(num_covariates, edge_prob = 0.15,
-#'                       mag_range = c(0.4, 0.9))
-#' Adjacency_matrix_true <- truth$E
+#' data_matrix <- example_list$data_matrix
+#' Adjacency_matrix_true <- example_list$Adjacency_matrix_true
+#' Causal_effect_matrix_true <- example_list$Causal_effect_matrix_true
+#' Z_matrix_true <- example_list$Z_matrix_true
 #'
-#' err <- matrix(rnorm(N * num_covariates, mean = 2 * sample(c(-1, 1),
-#'               N * num_covariates, TRUE), sd = 0.5), N, num_covariates)
-#' data_matrix <- t(solve(diag(num_covariates) - truth$B, t(err)))
-#'
-#' results_lists <- BayesDAG(
+#' \donttest{
+#' # Fit the Bayesian DAG model
+#' results_list <- BayesDAG(
 #'   data_matrix,
-#'   a_mu = 0, b_mu = 2,
-#'   a_gamma = 0.5, b_gamma = 0.5,
-#'   a_tao = 2, b_tao = 1,
-#'   a_og_tao = 0.01, b_og_tao = 0.01,
-#'   a_gamma_1 = 2, b_gamma_1 = 1,
+#'   a_mu = 0,
+#'   b_mu = 2,
+#'   a_gamma = 0.5,
+#'   b_gamma = 0.5,
+#'   a_tao = 2,
+#'   b_tao = 1,
+#'   a_og_tao = 0.01,
+#'   b_og_tao = 0.01,
+#'   a_gamma_1 = 2,
+#'   b_gamma_1 = 1,
 #'   alpha = 1,
 #'   M = M,
 #'   num_iter = num_iter,
 #'   burn_in_iterations = burn_in_iterations
 #' )
 #'
-#' # Returned traces already contain only retained posterior draws
-#' results_lists$first_stored_iteration
-#' results_lists$n_stored
+#' # Information about the retained posterior sample
+#' results_list$first_stored_iteration
+#' results_list$n_stored
 #'
-#' edge_prob <- matrix(colMeans(results_lists$Adjacency_matrix_list),
-#'                     num_covariates, num_covariates)
-#' estimated_graph <- (edge_prob > 0.5) * 1
-#'
-#' mean(estimated_graph == Adjacency_matrix_true)
-#' head(results_lists$log_likelihood_list)
-#'
-#' # Continuing a chain: start a second run from the last draw.
-#' # init_Adjacency must be acyclic, which any stored draw is.
-#'
-#' last <- nrow(results_lists$Adjacency_matrix_list)
-#'
-#' results_lists2 <- BayesDAG(
-#'   data_matrix,
-#'   M = M, num_iter = num_iter,
-#'   burn_in_iterations = burn_in_iterations,
-#'   init_Adjacency     = matrix(results_lists$Adjacency_matrix_list[last, ],
-#'                               num_covariates, num_covariates),
-#'   init_Causal_effect = matrix(results_lists$Causal_effect_matrix_list[last, ],
-#'                               num_covariates, num_covariates),
-#'   init_mu            = matrix(results_lists$mu_matrix_list[last, ], num_covariates, M),
-#'   init_tao           = matrix(results_lists$tao_matrix_list[last, ], num_covariates, M),
-#'   init_pi            = matrix(results_lists$pi_matrix_list[last, ], num_covariates, M),
-#'   init_gamma_1       = results_lists$gamma_1_list[last],
-#'   init_gamma_result  = results_lists$gamma_list[last]
+#' # Select a representative posterior graph using
+#' # posterior expected Structural Hamming Distance
+#' Adjacency_matrix_est <- point_est_graph(
+#'   results_list$Adjacency_matrix_list,
+#'   dist_type = "shd"
 #' )
+#'
+#' # Compare the true and estimated graph structures
+#' Adjacency_matrix_true
+#' Adjacency_matrix_est
+#'
+#' # Posterior edge-inclusion probabilities
+#' PIP_matrix <- matrix(
+#'   colMeans(results_list$Adjacency_matrix_list),
+#'   nrow = num_covariates,
+#'   ncol = num_covariates
+#' )
+#'
+#' PIP_matrix
+#'
+#' # Inspect retained log-likelihood values
+#' head(results_list$log_likelihood_list)
+#' }
 
 BayesDAG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 0.5, b_gamma = 0.5,
                      a_tao = 2, b_tao = 1, a_og_tao = 0.01, b_og_tao = 0.01,

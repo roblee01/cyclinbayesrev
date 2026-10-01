@@ -53,61 +53,85 @@
 #'
 #' @export
 #' @examples
-#' # Run BayesDCG on a simulated cyclic example
+#' # Run BayesDCG on the DCG example used in the README
 #'
-#' set.seed(21)
+#' N <- 200
+#' num_covariates <- 10
+#' M <- 5
+#' num_iter <- 5000
+#' burn_in_iterations <- 3500
 #'
-#' N <- 250               # sample size
-#' num_covariates <- 7    # number of features
-#' M <- 2                 # mixture components for the error distribution
-#' num_iter <- 5000       # MCMC iterations
+#' # Generate the same DCG example used in the README
+#' example_list <- generates_examples_DCG(
+#'   num_covariates = num_covariates,
+#'   N              = N,
+#'   M_input        = 2,
+#'   prob_sparsity  = 0.90,
+#'   seed_input     = 21,
+#'   n_cycles       = 2,
+#'   len_range      = c(2, 4),
+#'   mag_range      = c(0.4, 0.9),
+#'   prob_positive  = 0.5,
+#'   tol_sing       = 0.05,
+#'   rho_max        = 0.95
+#' )
 #'
-#' # True cyclic graph and data
-#' truth <- generates_examples_DCG(num_covariates, edge_prob = 0.15, n_cycles = 2,
-#'                       mag_range = c(0.4, 0.9))
-#' Adjacency_matrix_true <- truth$E
+#' data_matrix <- example_list$data_matrix
+#' Adjacency_matrix_true <- example_list$Adjacency_matrix_true
+#' Causal_effect_matrix_true <- example_list$Causal_effect_matrix_true
+#' Z_matrix_true <- example_list$Z_matrix_true
 #'
-#' err <- matrix(rnorm(N * num_covariates, mean = 2 * sample(c(-1, 1),
-#'               N * num_covariates, TRUE), sd = 0.5), N, num_covariates)
-#' data_matrix <- t(solve(diag(num_covariates) - truth$B, t(err)))
+#' cycles_true <- example_list$cycles
+#' rho_true <- example_list$rho
 #'
-#' result_list <- BayesDCG(
+#' # Inspect the generated cyclic structure
+#' cycles_true
+#' rho_true
+#'
+#' \donttest{
+#' # Fit the Bayesian DCG model
+#' results_list <- BayesDCG(
 #'   data_matrix,
-#'   a_mu = 0, b_mu = 2,
-#'   a_gamma = 1, b_gamma = 20,
-#'   a_tao = 2, b_tao = 1,
-#'   a_gamma_1 = 0.5, b_gamma_1 = 0.5,
+#'   a_mu = 0,
+#'   b_mu = 2,
+#'   a_gamma = 1,
+#'   b_gamma = 20,
+#'   a_tao = 2,
+#'   b_tao = 1,
+#'   a_gamma_1 = 0.5,
+#'   b_gamma_1 = 0.5,
 #'   alpha = 1,
 #'   M = M,
 #'   num_iter = num_iter,
-#'   burn_in_iterations = 3500
+#'   burn_in_iterations = burn_in_iterations
 #' )
 #'
-#' # Posterior edge probabilities and a thresholded graph
-#' edge_prob <- matrix(colMeans(result_list$Adjacency_matrix_list),
-#'                     num_covariates, num_covariates)
-#' estimated_graph <- (edge_prob > 0.5) * 1
+#' # Number of retained posterior draws
+#' results_list$n_stored
 #'
-#' result_list$n_stored
-#' mean(estimated_graph == Adjacency_matrix_true)
-#'
-#' # Continuing a chain: start a second run from the last stored draw
-#'
-#' last <- result_list$n_stored
-#'
-#' result_list2 <- BayesDCG(
-#'   data_matrix,
-#'   M = M, num_iter = num_iter, burn_in_iterations = 3500,
-#'   init_Adjacency     = matrix(result_list$Adjacency_matrix_list[last, ],
-#'                               num_covariates, num_covariates),
-#'   init_Causal_effect = matrix(result_list$Causal_effect_matrix_list[last, ],
-#'                               num_covariates, num_covariates),
-#'   init_mu            = matrix(result_list$mu_matrix_list[last, ], num_covariates, M),
-#'   init_tao           = matrix(result_list$tao_matrix_list[last, ], num_covariates, M),
-#'   init_pi            = matrix(result_list$pi_matrix_list[last, ], num_covariates, M),
-#'   init_gamma_1       = result_list$gamma_1_list[last],
-#'   init_gamma_result  = result_list$gamma_list[last]
+#' # Select a representative posterior graph using
+#' # posterior expected Structural Hamming Distance
+#' Adjacency_matrix_est <- point_est_graph(
+#'   results_list$Adjacency_matrix_list,
+#'   dist_type = "shd"
 #' )
+#'
+#' # Compare the true and estimated graph structures
+#' Adjacency_matrix_true
+#' Adjacency_matrix_est
+#'
+#' # Posterior edge-inclusion probabilities
+#' PIP_matrix <- matrix(
+#'   colMeans(results_list$Adjacency_matrix_list),
+#'   nrow = num_covariates,
+#'   ncol = num_covariates
+#' )
+#'
+#' PIP_matrix
+#'
+#' # Inspect retained log-likelihood values
+#' head(results_list$log_likelihood_list)
+#' }
 
 BayesDCG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 1, b_gamma = 20,
                      a_tao = 2, b_tao = 1, a_gamma_1 = 0.5, b_gamma_1 = 0.5,
