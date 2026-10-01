@@ -602,7 +602,7 @@ N = 200
 num_covariates = 10
 M = 5
 num_iter = 100000
-burn_in_iterations = 70000
+burn_in_iterations = 80000
 
 
 #######################################
@@ -815,7 +815,7 @@ true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 ```
 
-The posterior probability of the true network motif is $0.7013$, indicating that the motif is present in approximately $70.1\%$ of the retained posterior graph samples. This suggests substantial posterior support for the underlying structural feature, even though the exact full graph structure may vary across posterior draws.
+The posterior probability of the true network motif is $0.704$, indicating that the motif is present in approximately $70.4\%$ of the retained posterior graph samples. This suggests substantial posterior support for the underlying structural feature, even though the exact full graph structure may vary across posterior draws.
 
 Similar to the acyclic case, to check whether the sampler has mixed well and is exploring the parameter space well, we again inspect the log likelihood. Below we plot the log likelihood for each iteration to assess mixing and posterior behavior:
 

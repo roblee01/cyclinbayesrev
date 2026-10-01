@@ -64,8 +64,24 @@
 
 point_est_graph = function(Adjacency_matrix_list, dist_type = 'shd', dist_fun = NULL, burn_in_frac = 0.75){
   dist_type = match.arg(dist_type, c("shd", "sid", "custom"))
+
+  if (!is.numeric(burn_in_frac) || length(burn_in_frac) != 1L ||
+      is.na(burn_in_frac) || burn_in_frac < 0 || burn_in_frac >= 1) {
+    stop("burn_in_frac must be a single numeric value in [0, 1).")
+  }
+
+  if (!is.matrix(Adjacency_matrix_list)) {
+    Adjacency_matrix_list = as.matrix(Adjacency_matrix_list)
+  }
+  if (nrow(Adjacency_matrix_list) < 1L || ncol(Adjacency_matrix_list) < 1L) {
+    stop("Adjacency_matrix_list must contain at least one posterior graph.")
+  }
+
   num_iter = nrow(Adjacency_matrix_list)
   p = as.integer(round(sqrt(ncol(Adjacency_matrix_list))))
+  if (p * p != ncol(Adjacency_matrix_list)) {
+    stop("The number of columns in Adjacency_matrix_list must equal p^2 for some integer p.")
+  }
 
   start = floor(burn_in_frac * num_iter) + 1L
   A_keep = Adjacency_matrix_list[start:num_iter, , drop = FALSE]
@@ -232,5 +248,5 @@ sid_matrix = function(U, p) {
     }
     S[g, ] = row_total
   }
-  S
+  return(S)
 }
