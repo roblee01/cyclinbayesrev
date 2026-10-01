@@ -1928,22 +1928,29 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
   const double N       = data_matrix.n_rows;
 
   // --- Phase schedule (needed here to size the storage)
-  // Iterations 1..burn_in are unconstrained; constrained_start onward are
-  // restricted to disjoint cycles, and constrained_start..anneal_end-1 are
-  // tempered.
+  // The BURN-IN is split 80/20:
+  //   * first 80% of burn-in  : UNCONSTRAINED (cycles may overlap), gamma ramped
+  //   * last  20% of burn-in  : CONSTRAINED (disjoint cycles) + ANNEALED
+  //   * after burn-in         : CONSTRAINED, un-annealed -> stored (posterior)
+  // So the disjoint-cycle restriction and tempering both live inside the last
+  // fifth of the burn-in; everything returned is a settled posterior draw.
   const int n_iter_i           = static_cast<int>(num_iter);
   const int burn_in_iters_i    = static_cast<int>(burn_in_iterations);
-  const int constrained_start  = burn_in_iters_i + 1;
-  // std::max guards num_iter <= burn_in_iterations (no constrained phase)
-  const int anneal_len = std::max(0, static_cast<int>(
-    std::floor(0.4 * (n_iter_i - burn_in_iters_i))));
-  const int anneal_end = constrained_start + anneal_len;
+  // constrained (and annealing) begins at 80% of the burn-in
+  const int constrained_start  = static_cast<int>(
+    std::floor(0.8 * burn_in_iters_i)) + 1;
+  // annealing runs through the rest of the burn-in and ends when burn-in ends,
+  // i.e. the first stored iteration is burn_in + 1.
+  const int anneal_end = burn_in_iters_i + 1;
+  // length of the annealing window (last 20% of burn-in); guard non-positive.
+  const int anneal_len = std::max(1, anneal_end - constrained_start);
 
-  // --- Storage: only iterations i >= anneal_end
-  // Earlier iterations are not draws from the target posterior: in the
-  // unconstrained phase gamma_result is deterministically ramped, and in the
-  // annealing window the accept ratio uses likelihood_temp != 1 and
-  // prior_weight != 1.
+  // --- Storage: only iterations i >= anneal_end (= burn_in + 1)
+  // Earlier iterations are not draws from the target posterior: during the
+  // unconstrained part of burn-in gamma_result is deterministically ramped, and
+  // during the annealing part the accept ratio uses likelihood_temp != 1 and
+  // prior_weight != 1. Everything from burn_in+1 on is an un-annealed,
+  // disjoint-cycle-constrained posterior draw.
   const int n_keep = std::max(0, n_iter_i - anneal_end + 1);
 
   arma::vec gamma_1_list(n_keep, arma::fill::zeros);
@@ -2251,7 +2258,11 @@ List BCD_cpp(arma::mat data_matrix, double a_mu, double b_mu,
     const double gamma_result_sampled = rbeta_cpp(1, a, b)(0);
 
     if(!constrained_phase){
-      const double frac    = static_cast<double>(i) / burn_in_iterations;
+      // ramp over the UNCONSTRAINED window only, which now ends at
+      // constrained_start-1 (= 80% of burn-in), so the ramp completes exactly
+      // as the constrained phase begins.
+      const double frac    = static_cast<double>(i) /
+                             static_cast<double>(constrained_start);
       const double g_floor = 0.02;   // very sparse at start
       gamma_result = g_floor + (gamma_result_sampled - g_floor) * frac;
     } else {
