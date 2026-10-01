@@ -36,21 +36,21 @@ correspond to observations and columns correspond to variables included
 in the causal graph.}
 
 \item{a_mu}{Numeric. Mean parameter of the normal prior on each
-mixture-component mean. Default is 0.}
+mixture component mean. Default is 0.}
 
 \item{b_mu}{Numeric. Variance parameter of the normal prior on each
-mixture-component mean. Default is 2.}
+mixture component mean. Default is 2.}
 
 \item{a_gamma}{Numeric. First shape parameter of the Beta prior on the
-edge-inclusion probability \eqn{\gamma}. Default is 0.5.}
+edge inclusion probability \eqn{\gamma}. Default is 0.5.}
 
 \item{b_gamma}{Numeric. Second shape parameter of the Beta prior on the
-edge-inclusion probability \eqn{\gamma}. Default is 0.5.}
+edge inclusion probability \eqn{\gamma}. Default is 0.5.}
 
-\item{a_tao}{Numeric. Shape parameter of the inverse-gamma prior on the
-mixture-component variances. Default is 2.}
+\item{a_tao}{Numeric. Shape parameter of the inverse gamma prior on the
+mixture component variances. Default is 2.}
 
-\item{b_tao}{Numeric. Scale parameter of the inverse-gamma prior on the
+\item{b_tao}{Numeric. Scale parameter of the inverse gamma prior on the
 mixture-component variances. Default is 1.}
 
 \item{a_og_tao}{Numeric. Shape parameter of the proposal distribution used
@@ -87,11 +87,11 @@ of node \eqn{i}. The diagonal is ignored and the initial graph must be
 acyclic. Defaults to \code{NULL}.}
 
 \item{init_Causal_effect}{Optional \eqn{p \times p} matrix giving the
-initial causal-effect coefficients. Entries corresponding to absent
+initial causal effect coefficients. Entries corresponding to absent
 edges in \code{init_Adjacency} are set to zero. Defaults to \code{NULL}.}
 
 \item{init_mu}{Optional \eqn{p \times M} matrix giving the initial
-mixture-component means. Defaults to \code{NULL}.}
+mixture component means. Defaults to \code{NULL}.}
 
 \item{init_tao}{Optional \eqn{p \times M} matrix giving the initial
 mixture-component variances. Defaults to \code{NULL}.}
