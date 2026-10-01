@@ -61,7 +61,7 @@
 #' num_iter <- 100000
 #' burn_in_iterations <- 90000
 #'
-#' # Generate the same DCG example used in the README
+#' # Generate the DCG example
 #' example_list <- generates_examples_DCG(
 #'   num_covariates = num_covariates,
 #'   N              = N,
@@ -88,7 +88,42 @@
 #' cycles_true
 #' rho_true
 #'
+#'
+#' #######################################
+#' # DirectLiNGAM initialization
+#' #######################################
+#'
+#' B_seed <- directlingam_seed(data_matrix)
+#'
+#' seed_edge_threshold <- 0.05
+#' seed_rho_target <- 0.95
+#' seed_settle_sweeps <- 30
+#'
+#' init_state <- init_from_seed(
+#'   B_seed,
+#'   data_matrix,
+#'   N,
+#'   num_covariates,
+#'   M,
+#'   0,     # a_mu
+#'   2,     # b_mu
+#'   2,     # a_tao
+#'   1,     # b_tao
+#'   1,     # alpha
+#'   1,     # a_gamma
+#'   20,    # b_gamma
+#'   0.5,   # a_gamma_1
+#'   0.5,   # b_gamma_1
+#'   edge_threshold = seed_edge_threshold,
+#'   rho_target     = seed_rho_target,
+#'   settle_sweeps  = seed_settle_sweeps
+#' )
+#'
+#'
+#' #######################################
 #' # Fit the Bayesian DCG model
+#' #######################################
+#'
 #' results_list <- BayesDCG(
 #'   data_matrix,
 #'   a_mu = 0,
@@ -102,7 +137,15 @@
 #'   alpha = 1,
 #'   M = M,
 #'   num_iter = num_iter,
-#'   burn_in_iterations = burn_in_iterations
+#'   burn_in_iterations = burn_in_iterations,
+#'   init_Adjacency     = init_state$Adjacency_matrix,
+#'   init_Causal_effect = init_state$Causal_effect_matrix,
+#'   init_mu            = init_state$mu_mat,
+#'   init_tao           = init_state$tao_mat,
+#'   init_pi            = init_state$pi_mat,
+#'   init_Z             = init_state$Z_matrix,
+#'   init_gamma_1       = init_state$gamma_1,
+#'   init_gamma_result  = init_state$gamma_result
 #' )
 #'
 #' # Number of retained posterior draws
