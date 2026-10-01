@@ -107,8 +107,8 @@ corresponds to iteration \code{first_stored_iteration + k - 1}.
 N <- 200
 num_covariates <- 10
 M <- 5
-num_iter <- 50000
-burn_in_iterations <- 30000
+num_iter <- 30000
+burn_in_iterations <- 15000
 
 # Generate the DCG example
 example_list <- generates_examples_DCG(
