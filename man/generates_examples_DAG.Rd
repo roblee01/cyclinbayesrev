@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_examples_DAG.r
 \name{generates_examples_DAG}
 \alias{generates_examples_DAG}
-\title{Generate synthetic DAG example data}
+\title{Generate Synthetic DAG Data (Example Helper)}
 \usage{
 generates_examples_DAG(
   num_covariates,
@@ -69,16 +69,20 @@ memberships, in the layout used by \code{init_Z}.}
 }
 }
 \description{
-Simulates data from a randomly generated sparse directed acyclic graph (DAG).
-A random topological order is drawn, edges are placed only from earlier to
-later nodes, and weights are given magnitudes drawn from \code{mag_range}
-with independently drawn signs. Errors come from a finite normal mixture, so
-the model is identified without a Gaussian assumption.
-
-This is not an estimation or causal discovery method. It exists to produce
-example data sets for demonstrations, tests and simulation studies.
+Helper function for generating reproducible synthetic data from a sparse
+directed acyclic graph (DAG). It is primarily provided for the package README,
+function examples, tests, and simulation studies. It is \emph{not} a causal
+discovery or graph-estimation procedure; use \code{\link{BayesDAG}} to fit
+the Bayesian DAG model to observed data.
 }
 \details{
+The helper draws a random topological order, places edges only from earlier
+to later nodes, and assigns nonzero edge weights with magnitudes from
+\code{mag_range} and independently sampled signs. Structural errors are drawn
+from a finite normal mixture by default; Laplace and Student's t errors are
+also supported. The generated data and true graph and coefficient matrices
+allow examples and simulations to compare fitted estimates with known truth.
+
 Because all edges respect a topological order, \eqn{B} is nilpotent: by
 construction \eqn{\det(I - B) = 1} and \eqn{\rho(B) = 0}, so
 \eqn{(I - B)^{-1}} always exists and no rejection step is needed.
@@ -90,5 +94,6 @@ dim(ex$data_matrix)
 sum(ex$Adjacency_matrix_true)
 }
 \seealso{
-\code{\link{generates_examples_DCG}} for the cyclic version.
+\code{\link{generates_examples_DCG}} for the analogous cyclic
+data-generation helper, and \code{\link{BayesDAG}} for causal discovery.
 }
