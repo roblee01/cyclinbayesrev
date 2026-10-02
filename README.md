@@ -6,6 +6,13 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/roblee01/cyclinbayesrev/actions/workflows/R-CMD-check.yaml)
+
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/roblee01/cyclinbayes/blob/main/LICENSE.md)
+
+[![GitHub
+issues](https://img.shields.io/github/issues/roblee01/cyclinbayes)](https://github.com/roblee01/cyclinbayes/issues)
+
 <!-- badges: end -->
 
 Cyclinbayes is an R package implementing bayesian methods for estimating
@@ -570,11 +577,6 @@ ggplot(data_hpd, aes(x = edge, y = estimate)) +
       hjust = 1
     )
   )
-```
-
-<img src="man/figures/README-unnamed-chunk-13-1.png" alt="" width="100%" />
-
-``` r
 
 
 #######################################
@@ -628,11 +630,6 @@ ggplot(data_ci, aes(x = edge, y = estimate)) +
       hjust = 1
     )
   )
-```
-
-<img src="man/figures/README-unnamed-chunk-13-2.png" alt="" width="100%" />
-
-``` r
 
 
 #######################################
@@ -666,6 +663,7 @@ cat(
 #> Credible interval coverage: 9 out of 9
 ```
 
+<img src="man/figures/README-unnamed-chunk-13-1.png" alt="" width="100%" /><img src="man/figures/README-unnamed-chunk-13-2.png" alt="" width="100%" />
 The figures compare posterior estimates of the nonzero causal effect
 coefficients with their true simulated values. Black points and vertical
 lines represent the posterior estimates and corresponding 95% intervals,
@@ -1180,11 +1178,6 @@ ggplot(
       hjust = 1
     )
   )
-```
-
-<img src="man/figures/README-unnamed-chunk-23-1.png" alt="" width="100%" />
-
-``` r
 
 
 #######################################
@@ -1267,11 +1260,6 @@ ggplot(
       hjust = 1
     )
   )
-```
-
-<img src="man/figures/README-unnamed-chunk-23-2.png" alt="" width="100%" />
-
-``` r
 
 
 #######################################
@@ -1306,6 +1294,7 @@ cat(
 #> Credible interval coverage: 7 out of 9
 ```
 
+<img src="man/figures/README-unnamed-chunk-23-1.png" alt="" width="100%" /><img src="man/figures/README-unnamed-chunk-23-2.png" alt="" width="100%" />
 The figures compare posterior estimates of the nonzero causal-effect
 coefficients with their true simulated values. Black points and vertical
 lines represent the posterior estimates and corresponding 95% intervals,

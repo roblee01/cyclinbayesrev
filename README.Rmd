@@ -352,7 +352,7 @@ true effects, and the intervals generally cover the corresponding ground-truth
 values, indicating accurate recovery of the causal-effect magnitudes in this
 example.
 
-```{r}
+```{r, fig.show='hold', echo=TRUE, message=FALSE, warning=FALSE}
 #######################################
 # Posterior intervals
 #######################################
@@ -830,7 +830,7 @@ plot(log_likelihood_list, type='l', xlab = 'Iterations', ylab = 'log likelihood 
 ```
 As seen overall, the log_likelihoods stay in the same general area indicating the sampler has reached a stationary regime, indicating posterior summaries for the other parameters are from a well converged chain. Similar to the acyclic case, we can summarize uncertainty in the causal effect coefficients using `posterior_interval_est(),` which computes HPD and equal tailed credible intervals for each specific parameter entry represented as columns of the matrix outputs. 
 
-```{r}
+```{r, fig.show='hold', echo=TRUE, message=FALSE, warning=FALSE}
 #######################################
 # Posterior intervals
 #######################################
