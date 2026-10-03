@@ -1,7 +1,7 @@
 Package: cyclinbayesrev
 Type: Package
 Title: Bayesian MCMC Methods for Cyclic and Acyclic Causal Graphs
-Version: 0.0.0.9000
+Version: 1.0.0
 Authors@R: person("Robert", "Lee", email = "robertdylee@tamu.edu", role = c("aut", "cre"))
 Description: Tools for Bayesian MCMC estimation of the structure of cyclic and
     acyclic causal graphs. Includes a Bayesian LiNGAM method BayesSCLingam for DAGs and a cyclic
