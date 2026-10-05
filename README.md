@@ -681,11 +681,8 @@ probability. For excluded edges, $B_{ij}=0$.
 Because feedback is present in a cyclic model, we additionally require
 the causal effect matrix to satisfy the stability condition
 
-<div style="text-align: center; margin: 1em 0;">
-
-ρ(B) = max { \|λ\| : λ ∈ eig(B) } \< 1.
-
-</div>
+$$\rho(B) =
+\max\left\{|\lambda| : \lambda \in \operatorname{eig}(B)\right\} < 1.$$
 
 Here, ρ(B) denotes the spectral radius of the causal effect matrix.
 Given the causal effect matrix $B$ and structural error matrix
