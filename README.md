@@ -15,25 +15,23 @@ issues](https://img.shields.io/github/issues/roblee01/cyclinbayes)](https://gith
 
 <!-- badges: end -->
 
-Cyclinbayes is an R package implementing bayesian methods for estimating
-both directed acyclic graphs (DAGs) and directed cyclic graphs (DCGs).
-The package provides full posterior inference for graph structures and
-causal effects using a hierarchical Bayesian model, allowing principled
-uncertainty quantification, edge inclusion probabilities, and credible
-intervals.
+Cyclinbayes is an open-source R package for Bayesian causal discovery in
+directed acyclic graphs (DAGs) and directed cyclic graphs (DCGs) under
+linear non-Gaussian structural equation models. The package provides
+posterior inference for graph structures and causal effects, allowing
+users to quantify uncertainty in causal relationships, including those
+involving feedback cycles.
 
-For DAGs, cyclinbayes uses a hybrid MCMC scheme that combines collapsed
-Gibbs sampling with simulated annealing to improve mixing and avoid
-local optima. For DCGs, the package performs joint updates of adjacency
-and causal effect coefficients using random walk proposals, enabling
-inference in systems with feedback cycles. For DCGs, the package
-performs joint updates of adjacency and causal effect coefficients using
-random walk proposals, enabling inference in systems with feedback
-cycles. In both settings, sparsity is effectively recovered using spike
-and slab priors.
+The package implements two MCMC-based algorithms: `BayesDAG()` for
+acyclic structures using collapsed Gibbs sampling and `BayesDCG()` for
+cyclic structures using joint Metropolis-Hastings updates. Both methods
+use hierarchical priors to encourage sparse graphs.
 
-Implemented in Rcpp, cyclinbayes leverages optimized C++ routines to
-handle large scale, high dimensional datasets.
+In addition to graph estimation, cyclinbayes provides posterior edge
+inclusion probabilities, credible intervals for causal effects, network
+motif probabilities, and decision-theoretic graph selection. The package
+is implemented using Rcpp and RcppArmadillo for computational
+efficiency.
 
 ## Installation from Github
 
@@ -69,11 +67,11 @@ library(igraph)
 
 ## Acyclic (DAG) Example
 
-Below is a simple example demonstrating how to use the Bayesian LiNGAM
-(DAG) sampler. Let $p$ denote the number of variables, $N$ the sample
-size, and `num_iter` the number of MCMC iterations. Let
-$i \in \{1,\ldots,p\}$ index variables and $q \in \{1,\ldots,N\}$ index
-observations.
+Below is a simple example demonstrating how to use `BayesDAG()`, the
+Bayesian LiNGAM sampler for directed acyclic graph (DAG) structure
+estimation. Let $p$ denote the number of variables, $N$ the sample size,
+and `num_iter` the number of MCMC iterations. Let $i \in \{1,\ldots,p\}$
+index variables and $q \in \{1,\ldots,N\}$ index observations.
 
 We generate structural errors from a finite Gaussian mixture model,
 
@@ -185,16 +183,14 @@ plot(
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" alt="" width="100%" />
 
-With the simulated dataset and prior hyperparameters specified above, we
-fit the Bayesian LiNGAM model using `BayesDAG().` The sampler runs for
-`num_iter` iterations, but only post-burn-in draws are returned for
-posterior analysis. The `burn_in_iterations` argument specifies how many
-initial iterations are discarded. Because the DAG sampler uses an
-annealing contribution during the early iterations, the implementation
-ensures that the effective burn-in is at least 20% of `num_iter`; if a
-smaller value is supplied, it is automatically increased to the end of
-this annealing window. Thus, the returned samples correspond only to the
-post-annealing posterior-sampling phase.
+The sampler runs for `num_iter` iterations, but only post burn-in draws
+are returned for posterior analysis. The `burn_in_iterations` argument
+specifies how many initial iterations are discarded. Because the DAG
+sampler uses an annealing contribution during the early iterations, the
+implementation ensures that the effective burn-in is at least 20% of
+`num_iter`; if a smaller value is supplied, it is automatically
+increased to the end of this annealing window. Thus, the returned
+samples correspond only to the post-annealing posterior sampling phase.
 
 For each retained iteration $t$, the output includes:
 
@@ -416,11 +412,8 @@ posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 
 Since the value is at 1, this indicates that the sampler visited the
 true graph structure repeatedly on every possible posterior graph
-structure.
-
-To inspect sampler behavior, we plot the log likelihood over the
-retained posterior-sampling phase. Because `BayesDAG()` now returns only
-post-burn-in draws, no additional indexing by `num_iter` is needed.
+structure. To inspect sampler behavior, we plot the log likelihood over
+the retained posterior sampling phase.
 
 ``` r
 posterior_iterations = seq(
@@ -443,13 +436,13 @@ As shown above, the log-likelihood remains within a relatively stable
 range during the retained posterior-sampling phase, providing empirical
 evidence that the sampler has entered a stable sampling regime. The
 graph summaries and interval estimates below are therefore computed
-directly from the post-burn-in samples returned by `BayesDAG()`.
+directly from the post burn-in samples returned by `BayesDAG()`.
 
 Posterior interval estimates are obtained using , which computes highest
-posterior density (HPD) intervals and equal-tailed credible intervals
-column-wise for each element of the sampled parameter matrices. To
-illustrate posterior uncertainty in the causal-effect coefficients, we
-examine the nonzero entries of the true causal-effect matrix $B$.
+posterior density (HPD) intervals and equal tailed credible intervals
+column wise for each element of the sampled parameter matrices. To
+illustrate posterior uncertainty in the causal effect coefficients, we
+examine the nonzero entries of the true causal effect matrix $B$.
 
 The figures below display the posterior estimates together with their
 95% HPD and equal-tailed credible intervals. For each causal edge, the
@@ -458,8 +451,8 @@ coefficient, while the black point and vertical interval summarize the
 posterior estimate and uncertainty. This allows each estimated effect to
 be compared directly with its ground-truth value. Overall, the posterior
 estimates lie close to the true effects, and the intervals generally
-cover the corresponding ground-truth values, indicating accurate
-recovery of the causal-effect magnitudes in this example.
+cover the corresponding ground truth values, indicating accurate
+recovery of the causal effect magnitudes in this example.
 
 ``` r
 #######################################
@@ -670,8 +663,8 @@ lines represent the posterior estimates and corresponding 95% intervals,
 while red crosses indicate the true causal effects.
 
 In this acyclic example, the posterior estimates closely match the true
-causal-effect coefficients across all true edges. The 95% HPD and
-equal-tailed credible intervals contain, or closely surround, the
+causal effect coefficients across all true edges. The 95% HPD and equal
+tailed credible intervals contain, or closely surround, the
 corresponding true values, indicating accurate recovery of both the
 direction and magnitude of the nonzero causal effects. The HPD and equal
 tailed intervals are also very similar, suggesting relatively well
@@ -683,7 +676,7 @@ example.
 Finally, to illustrate the cyclic Bayesian sampler, we generate a
 directed cyclic graph (DCG) containing at least one directed cycle. The
 graph is generated under the disjoint-cycle restriction used by
-`BayesDCG`, so that no two directed cycles share a node.
+`BayesDCG()`, so that no two directed cycles share a node.
 
 For each included edge $j \to i$, the corresponding nonzero
 causal-effect coefficient is generated according to
@@ -911,9 +904,8 @@ plot(
 
 <img src="man/figures/README-unnamed-chunk-16-1.png" alt="" width="100%" />
 
-With the simulated dataset and prior hyperparameters specified above, we
-now fit the Bayesian LiNGAM model using `BayesDCG().` The function,
-similar to `BayesDAG(),` returns same posterior samples for
+The function `BayesDCG(),` similar to `BayesDAG(),` returns same
+posterior samples for
 
 - Adjacency matrices,
 - Causal effect matrices,
@@ -1015,6 +1007,7 @@ plot(log_likelihood_list, type='l', xlab = 'Iterations', ylab = 'log likelihood 
 ```
 
 <img src="man/figures/README-unnamed-chunk-22-1.png" alt="" width="100%" />
+
 As seen overall, the log_likelihoods stay in the same general area
 indicating the sampler has reached a stationary regime, indicating
 posterior summaries for the other parameters are from a well converged
@@ -1310,7 +1303,7 @@ mass near zero and an interval that does not contain the true positive
 coefficient. The `5 -> 10` effect is retained but is overestimated in
 this example.
 
-These results illustrate that uncertainty in the causal-effect estimates
+These results illustrate that uncertainty in the causal effect estimates
 reflects both uncertainty in graph selection and uncertainty in the
 magnitude of an included edge. In particular, coefficients are equal to
 zero in posterior draws for which the corresponding edge is absent.
