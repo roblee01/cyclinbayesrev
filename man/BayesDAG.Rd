@@ -19,7 +19,7 @@ BayesDAG(
   alpha = 1,
   M,
   num_iter = 10000,
-  burn_in_iterations = 2000,
+  burn_in_iterations = floor(0.2 * num_iter),
   init_Adjacency = NULL,
   init_Causal_effect = NULL,
   init_mu = NULL,

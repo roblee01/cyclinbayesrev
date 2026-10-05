@@ -34,8 +34,8 @@ Selects a representative graph structure from posterior samples by computing a \
 SID is not symmetric. For \code{dist_type = "sid"} each candidate graph is
 scored as the estimate against every posterior sample as the truth, i.e. the
 returned graph minimises \eqn{\sum_g w_g \, SID(G_g, \hat G)}, the posterior
-expected SID. SID is computed natively (no dependency on the SID package);
-it reproduces \code{SID::structIntervDist(trueGraph, estGraph)$sid} for DAGs.
+expected SID. SID is computed natively (no dependency on the SID package).
+It reproduces \code{SID::structIntervDist(trueGraph, estGraph)$sid} for DAGs.
 }
 \examples{
 N = 300

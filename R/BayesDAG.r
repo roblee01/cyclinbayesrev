@@ -136,7 +136,7 @@
 BayesDAG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 0.5, b_gamma = 0.5,
                      a_tao = 2, b_tao = 1, a_og_tao = 0.01, b_og_tao = 0.01,
                      a_gamma_1 = 2, b_gamma_1 = 1, alpha = 1, M, num_iter = 10000,
-                     burn_in_iterations = 2000,
+                     burn_in_iterations = floor(0.2*num_iter),
                      init_Adjacency = NULL, init_Causal_effect = NULL,
                      init_mu = NULL, init_tao = NULL, init_pi = NULL,
                      init_Z = NULL, init_gamma_1 = NULL,
