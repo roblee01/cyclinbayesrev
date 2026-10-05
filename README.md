@@ -90,14 +90,14 @@ $$M=2,\qquad
 We generate a sparse DAG by including each candidate directed edge with
 probability $1-\Delta=0.1$, where $\Delta=0.9$, while enforcing
 acyclicity. For each included edge $j\to i$, the corresponding nonzero
-causal-effect coefficient is generated according to
+causal effect coefficient is generated according to
 
 $$|B_{ij}| \sim \mathrm{Unif}(0.4,0.9),$$
 
 with its sign chosen independently to be positive or negative with equal
 probability. For excluded edges, $B_{ij}=0$.
 
-Given the causal-effect matrix $B$ and structural error matrix
+Given the causal effect matrix $B$ and structural error matrix
 $\epsilon$, the observed data are generated from
 
 $$Y=(I-B)^{-1}\epsilon,$$
@@ -679,8 +679,8 @@ directed cyclic graph (DCG) containing at least one directed cycle. The
 graph is generated under the disjoint-cycle restriction used by
 `BayesDCG()`, so that no two directed cycles share a node.
 
-For each included edge $j \to i$, the corresponding nonzero
-causal-effect coefficient is generated according to
+For each included edge $j \to i$, the corresponding nonzero causal
+effect coefficient is generated according to
 
 $$|B_{ij}| \sim \mathrm{Unif}(0.4,0.9),$$
 
@@ -688,7 +688,7 @@ with its sign chosen independently to be positive or negative with equal
 probability. For excluded edges, $B_{ij}=0$.
 
 Because feedback is present in a cyclic model, we additionally require
-the causal-effect matrix to satisfy the stability condition
+the causal effect matrix to satisfy the stability condition
 
 <div style="text-align: center; margin: 1em 0;">
 
@@ -696,8 +696,8 @@ the causal-effect matrix to satisfy the stability condition
 
 </div>
 
-Here, ρ(B) denotes the spectral radius of the causal-effect matrix.
-Given the causal-effect matrix $B$ and structural error matrix
+Here, ρ(B) denotes the spectral radius of the causal effect matrix.
+Given the causal effect matrix $B$ and structural error matrix
 $\epsilon$, the observed data are generated from
 
 $$Y = (I-B)^{-1}\epsilon.$$
@@ -792,7 +792,7 @@ Thus, no node belongs to more than one directed cycle, consistent with
 the disjoint-cycle restriction used by `BayesDCG`.
 
 The value `rho_true = 0.7454885` is the spectral radius of the generated
-causal-effect matrix. Since this value is below the specified stability
+causal effect matrix. Since this value is below the specified stability
 threshold (`rho_max = 0.95` in this example), the generated DCG
 satisfies the stability requirement.
 
@@ -1289,7 +1289,7 @@ cat(
 ```
 
 <img src="man/figures/README-unnamed-chunk-23-1.png" alt="" width="100%" /><img src="man/figures/README-unnamed-chunk-23-2.png" alt="" width="100%" />
-The figures compare posterior estimates of the nonzero causal-effect
+The figures compare posterior estimates of the nonzero causal effect
 coefficients with their true simulated values. Black points and vertical
 lines represent the posterior estimates and corresponding 95% intervals,
 while red crosses indicate the true causal effects.
