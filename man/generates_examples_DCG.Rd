@@ -82,7 +82,7 @@ Helper function for generating reproducible synthetic data from a sparse
 directed cyclic graph (DCG). It is primarily provided for the package
 README, function examples, tests, and simulation studies.
 
-This function is not a causal discovery or graph-estimation procedure.
+This function is not a causal discovery or graph estimation procedure.
 It generates simulated data with known graph structures and causal
 coefficients so that users can demonstrate and evaluate the Bayesian
 causal discovery methods implemented in the package.

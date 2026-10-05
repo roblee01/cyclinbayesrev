@@ -22,7 +22,7 @@
 #' the initial graph structure and computes the corresponding
 #' residuals. It then initializes the Gaussian mixture parameters
 #' using these residuals. This provides an initial state in which
-#' the graph and error-model parameters are mutually consistent.
+#' the graph and error model parameters are mutually consistent.
 #'
 #' Seed coefficients smaller than \code{edge_threshold} in
 #' absolute value are removed. The coefficient matrix is also
@@ -35,7 +35,7 @@
 #'
 #' The resulting parameter values can be passed to
 #' \code{\link{BayesDAG}} or \code{\link{BayesDCG}} as initial
-#' states. These values serve only as starting points;
+#' states. These values serve only as starting points,
 #' posterior inference is subsequently performed by the
 #' corresponding Bayesian sampler.
 #'

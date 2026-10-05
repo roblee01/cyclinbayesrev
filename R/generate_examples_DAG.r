@@ -4,7 +4,7 @@
 #' Helper function for generating reproducible synthetic data from a sparse
 #' directed acyclic graph (DAG). It is primarily provided for the package README,
 #' function examples, tests, and simulation studies. It is \emph{not} a causal
-#' discovery or graph-estimation procedure; use \code{\link{BayesDAG}} to fit
+#' discovery or graph estimation procedure, use \code{\link{BayesDAG}} to fit
 #' the Bayesian DAG model to observed data.
 #'
 #' @details
