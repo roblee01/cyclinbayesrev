@@ -438,11 +438,12 @@ evidence that the sampler has entered a stable sampling regime. The
 graph summaries and interval estimates below are therefore computed
 directly from the post burn-in samples returned by `BayesDAG()`.
 
-Posterior interval estimates are obtained using , which computes highest
-posterior density (HPD) intervals and equal tailed credible intervals
-column wise for each element of the sampled parameter matrices. To
-illustrate posterior uncertainty in the causal effect coefficients, we
-examine the nonzero entries of the true causal effect matrix $B$.
+Posterior interval estimates are obtained using
+`posterior_interval_est()`, which computes highest posterior density
+(HPD) intervals and equal tailed credible intervals column wise for each
+element of the sampled parameter matrices. To illustrate posterior
+uncertainty in the causal effect coefficients, we examine the nonzero
+entries of the true causal effect matrix $B$.
 
 The figures below display the posterior estimates together with their
 95% HPD and equal-tailed credible intervals. For each causal edge, the
