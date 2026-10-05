@@ -316,16 +316,18 @@ We observe that the structures selected using SHD and the custom edge mismatch d
 Adjacency_matrix_true
 ```
 
-In addition to choosing the best possible graphs through distance based medoids, users may evaluate how often a graph appears in structure appears in the posterior samples. This provides posterior support for any candidate DAG, such as the true graph. 
-
-The function `posterior_network_motif()` computes the posterior mass (relative frequency) of a graph by checking whether all its edges are present on each of the posterior graph structures. Using the adjacency samples from the acyclic example above, we can compute the posterior mass assigned to the true graph:
+In addition to selecting a representative graph, users can evaluate
+posterior support for a specified network motif using
+`posterior_network_motif()`. The function computes the proportion of
+posterior graph samples containing all edges in the specified motif.
+Here, we evaluate support for the edges in the true DAG:
 
 ```{r}
 true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true)
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 ```
 
-Since the value is at 1, this indicates that the sampler visited the true graph structure repeatedly on every possible posterior graph structure. To inspect sampler behavior, we plot the log likelihood over the retained posterior sampling phase. 
+A value of 1 indicates that all edges in the specified true-graph motif are present in every retained posterior graph sample. To assess sampler behavior, we next plot the log likelihood over the retained posterior sampling phase.
 
 ```{r}
 posterior_iterations = seq(
@@ -564,10 +566,7 @@ cat(
   "\n"
 )
 ```
-The figures compare posterior estimates of the nonzero causal effect
-coefficients with their true simulated values. Black points and vertical
-lines represent the posterior estimates and corresponding 95% intervals,
-while red crosses indicate the true causal effects.
+
 
 In this acyclic example, the posterior estimates closely match the true
 causal effect coefficients across all true edges. The 95% HPD and
@@ -580,10 +579,10 @@ this example.
 
 ## Cyclic (DCG) Example
 
-Finally, to illustrate the cyclic Bayesian sampler, we generate a directed
-cyclic graph (DCG) containing at least one directed cycle. The graph is
-generated under the disjoint-cycle restriction used by `BayesDCG()`, so that
-no two directed cycles share a node.
+We next illustrate `BayesDCG()`, the Bayesian sampler for directed
+cyclic graph (DCG) structure estimation. We generate a DCG containing
+directed feedback cycles under the disjoint-cycle restriction used by
+`BayesDCG()`, so that no two directed cycles share a node.
 
 For each included edge \(j \to i\), the corresponding nonzero causal effect
 coefficient is generated according to
@@ -651,7 +650,7 @@ example_list = generates_examples_DCG(
   M_input        = 2,          # components used to generate the errors
   prob_sparsity  = 0.90,       # target edge density = 0.10
   seed_input     = 21,
-  n_cycles       = 2,          # four vertex-disjoint directed cycles
+  n_cycles       = 2,          # two vertex disjoint directed cycles
   len_range      = c(2, 4),
   mag_range      = c(0.4, 0.9),
   prob_positive  = 0.5,
@@ -795,14 +794,13 @@ plot(
 )
 ```
 
-The function `BayesDCG(),` similar to `BayesDAG(),` returns same posterior samples for 
+`BayesDCG()` returns the same general types of posterior output as
+`BayesDAG()`, including sampled adjacency matrices, causal effect
+matrices, and mixture-model parameters.
 
-- Adjacency matrices,
-- Causal effect matrices, 
-- Mixture parameters for the error model, with component specific means and variances/precisions stored in matrices. 
-
-
-To obtain a representative estimate of the graph structure, we again use the function `point_est_graph(),` which selects the posterior weighted medoid under a chosen distance metric. We use the same distance metrics, but the Structural Intervention Distance (SID) is only applicable when the sampled graphs are DAGs. Users may select shd or supply their own custom functions. 
+As in the DAG example, we use `point_est_graph()` to obtain a
+representative posterior graph. SHD and user-defined distances may be
+used for DCGs; SID is restricted to DAGs.
 
 ```{r,warning=FALSE, message=FALSE, error = TRUE}
 # SID is shown for completeness, it applies only when all posterior graphs are DAGs. If any sampled graph contains a cycle, SID-based selection will produce an error.
@@ -827,22 +825,24 @@ In this example, the selected graphs coincide with the true adjacency matrix:
 Adjacency_matrix_true
 ```
 
-In addition to choosing the best possible graphs through distance based medoids, users similarly may evaluate how often a graph appears in structure appears in the posterior samples using `posterior_network_motif().` This provides posterior support for any candidate DCG, such as the true graph. 
+We can similarly use `posterior_network_motif()` to evaluate posterior
+support for the true DCG motif:
 
 ```{r}
 true_graph_structure = igraph::graph_from_adjacency_matrix(Adjacency_matrix_true)
+
 posterior_network_motif(true_graph_structure, Adjacency_matrix_list)
 ```
 
 The posterior probability of the true network motif is $0.704$, indicating that the motif is present in approximately $70.4\%$ of the retained posterior graph samples. This suggests substantial posterior support for the underlying structural feature, even though the exact full graph structure may vary across posterior draws.
 
-Similar to the acyclic case, to check whether the sampler has mixed well and is exploring the parameter space well, we again inspect the log likelihood. Below we plot the log likelihood for each iteration to assess mixing and posterior behavior:
+We also inspect the retained log likelihood values to assess sampler behavior:
 
 ```{r}
 plot(log_likelihood_list, type='l', xlab = 'Iterations', ylab = 'log likelihood values')
 ```
 
-As seen overall, the log_likelihoods stay in the same general area indicating the sampler has reached a stationary regime, indicating posterior summaries for the other parameters are from a well converged chain. Similar to the acyclic case, we can summarize uncertainty in the causal effect coefficients using `posterior_interval_est(),` which computes HPD and equal tailed credible intervals for each specific parameter entry represented as columns of the matrix outputs. 
+The retained log likelihood remains within a relatively stable range, providing empirical evidence that the sampler has entered a stable sampling regime. We then use `posterior_interval_est()` to summarize uncertainty in the causal effect coefficients, as in the DAG example.
 
 ```{r, fig.show='hold', echo=TRUE, message=FALSE, warning=FALSE}
 #######################################
