@@ -16,7 +16,7 @@ BayesDCG(
   b_gamma_1 = 0.5,
   alpha = 1,
   M,
-  num_iter,
+  num_iter = 20000,
   burn_in_iterations = floor(0.7 * num_iter),
   init_Adjacency = NULL,
   init_Causal_effect = NULL,
@@ -62,7 +62,7 @@ mixture weights. Default is 1.}
 \item{M}{Integer. Maximum number of mixture components in the finite normal
 mixture error model.}
 
-\item{num_iter}{Integer. Total number of MCMC iterations.}
+\item{num_iter}{Integer. Total number of MCMC iterations. Default is 20000.}
 
 \item{burn_in_iterations}{Integer. Length of the initial unconstrained phase.
 Must be smaller than \code{num_iter}. Defaults to 70 percent of

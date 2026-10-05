@@ -52,10 +52,10 @@ mixture component variances. Default is 2.}
 \item{b_tao}{Numeric. Scale parameter of the inverse-gamma prior on the
 mixture component variances. Default is 1.}
 
-\item{a_og_tao}{Numeric. Shape parameter used in the variance-related proposal
+\item{a_og_tao}{Numeric. Shape parameter used in the variance related proposal
 distribution. Default is 0.01.}
 
-\item{b_og_tao}{Numeric. Scale parameter used in the variance-related proposal
+\item{b_og_tao}{Numeric. Scale parameter used in the variance related proposal
 distribution. Default is 0.01.}
 
 \item{a_gamma_1}{Numeric. Shape parameter of the inverse-gamma prior on the

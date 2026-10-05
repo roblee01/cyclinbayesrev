@@ -28,9 +28,9 @@
 #'   mixture component variances. Default is 2.
 #' @param b_tao Numeric. Scale parameter of the inverse-gamma prior on the
 #'   mixture component variances. Default is 1.
-#' @param a_og_tao Numeric. Shape parameter used in the variance-related proposal
+#' @param a_og_tao Numeric. Shape parameter used in the variance related proposal
 #'   distribution. Default is 0.01.
-#' @param b_og_tao Numeric. Scale parameter used in the variance-related proposal
+#' @param b_og_tao Numeric. Scale parameter used in the variance related proposal
 #'   distribution. Default is 0.01.
 #' @param a_gamma_1 Numeric. Shape parameter of the inverse-gamma prior on the
 #'   slab variance \eqn{\gamma_1}. Default is 2.

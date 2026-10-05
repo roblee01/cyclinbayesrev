@@ -37,7 +37,7 @@
 #'   mixture weights. Default is 1.
 #' @param M Integer. Maximum number of mixture components in the finite normal
 #'   mixture error model.
-#' @param num_iter Integer. Total number of MCMC iterations.
+#' @param num_iter Integer. Total number of MCMC iterations. Default is 20000.
 #' @param burn_in_iterations Integer. Length of the initial unconstrained phase.
 #'   Must be smaller than \code{num_iter}. Defaults to 70 percent of
 #'   \code{num_iter}.
@@ -149,7 +149,7 @@
 #'
 BayesDCG <- function(data_matrix, a_mu = 0, b_mu = 2, a_gamma = 1, b_gamma = 20,
                      a_tao = 2, b_tao = 1, a_gamma_1 = 0.5, b_gamma_1 = 0.5,
-                     alpha = 1, M, num_iter,
+                     alpha = 1, M, num_iter = 20000,
                      burn_in_iterations = floor(0.7 * num_iter),
                      init_Adjacency = NULL, init_Causal_effect = NULL,
                      init_mu = NULL, init_tao = NULL, init_pi = NULL,
