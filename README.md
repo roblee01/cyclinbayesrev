@@ -114,7 +114,7 @@ N = 200 # Sample size for the test data
 num_covariates = 10 # Number of features for test data
 M = 5 # Number of finite clusters for mixed normal in likelihood
 num_iter = 100000 # Total number of MCMC iterations
-burn_in_iterations = 20000 # Discard initial draws; retain post-burn-in posterior samples
+burn_in_iterations = 20000 # Discard initial draws, retain post burn-in posterior samples
 
 #######################################
 # Hyperparameter setup
@@ -188,7 +188,7 @@ are returned for posterior analysis. The `burn_in_iterations` argument
 specifies how many initial iterations are discarded. Because the DAG
 sampler uses an annealing contribution during the early iterations, the
 implementation ensures that the effective burn-in is at least 20% of
-`num_iter`; if a smaller value is supplied, it is automatically
+`num_iter`. If a smaller value is supplied, it is automatically
 increased to the end of this annealing window. Thus, the returned
 samples correspond only to the post-annealing posterior sampling phase.
 
@@ -279,7 +279,7 @@ posterior_sample_length
 #> [1] 80000
 ```
 
-All downstream posterior summaries use these retained post-burn-in
+All downstream posterior summaries use these retained post burn-in
 draws. In this example, `burn_in_iterations = 20000`, so the returned
 posterior samples begin at iteration 20,001 and contain 80,000 draws.
 
@@ -769,14 +769,14 @@ rho_true
 
 The generated DCG can be inspected using `cycles_true` and `rho_true`.
 Here, `cycles_true` lists the directed cycles used to construct the
-graph. For this example, the generated graph contains two
-vertex-disjoint cycles:
+graph. For this example, the generated graph contains two vertex
+disjoint cycles:
 
 - `3 -> 9 -> 2 -> 7 -> 3`
 - `5 -> 10 -> 5`
 
 Thus, no node belongs to more than one directed cycle, consistent with
-the disjoint-cycle restriction used by `BayesDCG`.
+the disjoint cycle restriction used by `BayesDCG`.
 
 The value `rho_true = 0.7454885` is the spectral radius of the generated
 causal effect matrix. Since this value is below the specified stability
@@ -894,11 +894,11 @@ plot(
 
 `BayesDCG()` returns the same general types of posterior output as
 `BayesDAG()`, including sampled adjacency matrices, causal effect
-matrices, and mixture-model parameters.
+matrices, and mixture model parameters.
 
 As in the DAG example, we use `point_est_graph()` to obtain a
-representative posterior graph. SHD and user-defined distances may be
-used for DCGs; SID is restricted to DAGs.
+representative posterior graph. SHD and user defined distances may be
+used for DCGs, SID is restricted to DAGs.
 
 ``` r
 # SID is shown for completeness, it applies only when all posterior graphs are DAGs. If any sampled graph contains a cycle, SID-based selection will produce an error.
