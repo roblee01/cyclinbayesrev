@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: end -->
 
-Cyclinbayes is an open-source R package for Bayesian causal discovery
+`cyclinbayes` is an open-source R package for Bayesian causal discovery
 in directed acyclic graphs (DAGs) and directed cyclic graphs (DCGs)
 under linear non-Gaussian structural equation models. The package
 provides posterior inference for graph structures and causal effects,
@@ -36,7 +36,7 @@ acyclic structures using collapsed Gibbs sampling and `BayesDCG()`
 for cyclic structures using joint Metropolis-Hastings updates.
 Both methods use hierarchical priors to encourage sparse graphs.
 
-In addition to graph estimation, cyclinbayes provides posterior
+In addition to graph estimation, `cyclinbayes` provides posterior
 edge inclusion probabilities, credible intervals for causal effects,
 network motif probabilities, and decision-theoretic graph selection.
 The package is implemented using Rcpp and RcppArmadillo for
@@ -45,7 +45,7 @@ computational efficiency.
 
 
 ## Installation from Github
-You can install the development version of cyclinbayes from GitHub using remotes:
+You can install the development version of `cyclinbayes` from GitHub using remotes:
 
 ```{r}
 #install.packages("remotes")
@@ -120,11 +120,11 @@ where the \(i\)-th row of \(Y\) corresponds to
 #######################################
 # Simulation and MCMC settings
 #######################################
-N = 200 # Sample size for the test data
-num_covariates = 10 # Number of features for test data
-M = 5 # Number of finite clusters for mixed normal in likelihood
-num_iter = 100000 # Total number of MCMC iterations
-burn_in_iterations = 20000 # Discard initial draws, retain post burn-in posterior samples
+N = 200                     # Sample size of the simulated example dataset
+num_covariates = 10         # Number of variables in the simulated example dataset
+M = 5                       # Number of components in the fitted finite Gaussian mixture model
+num_iter = 100000           # Total number of MCMC iterations
+burn_in_iterations = 20000  # Number of initial MCMC iterations discarded as burn-in
 
 #######################################
 # Hyperparameter setup
@@ -149,13 +149,13 @@ params = list(
 example_list = generates_examples_DAG(
   num_covariates = num_covariates,
   N              = N,
-  M_input        = 2,        # components used to GENERATE the errors
-  prob_sparsity  = 0.90,     # = edge_prob 0.10
-  seed_input     = 21, # the script's set.seed(20 + sim)
-  mag_range      = c(0.4, 0.9),
-  prob_positive  = 0.5,
-  seed_structure = 1,        # dag_structure(seed = 1)
-  seed_weights   = 20        # dag_weights(seed = 20)
+  M_input        = 2,             # Number of Gaussian mixture components used to generate errors
+  prob_sparsity  = 0.90,          # Probability of no edge (edge probability = 0.10)
+  seed_input     = 21,            # Random seed for data generation
+  mag_range      = c(0.4, 0.9),   # Range of absolute values of nonzero edge weights
+  prob_positive  = 0.5,           # Probability that a nonzero edge weight is positive
+  seed_structure = 1,             # Random seed for generating the DAG structure
+  seed_weights   = 20             # Random seed for generating edge weights
 )
 
 data_matrix = example_list$data_matrix
@@ -186,24 +186,41 @@ plot(
 )
 ```
 
-The sampler runs for `num_iter` iterations, but only post burn-in draws are returned for posterior analysis. The `burn_in_iterations` argument specifies how many initial iterations are discarded. Because the DAG sampler uses an annealing contribution during the early iterations, the implementation ensures that the effective burn-in is at least 20% of `num_iter`. If a smaller value is supplied, it is automatically increased to the end of this annealing window. Thus, the returned samples correspond only to the post-annealing posterior sampling phase.
+The sampler runs for `num_iter` iterations, but only post burn-in draws are
+returned for posterior analysis. The `burn_in_iterations` argument specifies
+how many initial iterations are discarded. Because the DAG sampler uses an
+annealing contribution during the early iterations, the implementation ensures
+that the effective burn-in is at least 20% of `num_iter`. If a smaller value is
+supplied, it is automatically increased to the end of this annealing window.
+Thus, the returned samples correspond only to the post-annealing posterior
+sampling phase.
 
-For each retained iteration $t$, the output includes:
+Let \(t=1,\ldots,m\) index the \(m\) retained posterior draws. For each
+retained draw \(t\), the output includes:
 
-- Adjacency matrix $E^{(t)}\in \{0,1\}^{p\times p}$
-- Causal effect matrix $B^{(t)}\in \mathbb{R}^{p\times p}$
-- Mixture parameters for the error model, with component specific means and variances/precisions stored in matrices (e.g., $\mu^{(t)},\tau^{(t)}\in \mathbb{R}^{p\times M}$, where column $k$ corresponds to mixture component $k$).
+- Adjacency matrix \(E^{(t)}\in\{0,1\}^{p\times p}\)
+- Causal effect matrix \(B^{(t)}\in\mathbb{R}^{p\times p}\)
+- Mixture parameters for the error model, including the component-specific
+  means and variances
+  \(\mu^{(t)}=(\mu_{ik}^{(t)})\in\mathbb{R}^{p\times M}\) and
+  \(\tau^{(t)}=(\tau_{ik}^{(t)})\in\mathbb{R}^{p\times M}\), where
+  \(i=1,\ldots,p\) indexes variables and \(k=1,\ldots,M\) indexes mixture
+  components.
 
-For posterior summaries, the retained matrices are flattened (vectorized) into parameter vectors. Rows correspond to retained posterior draws and columns correspond to fixed matrix entries (for example, one column for $B_{ij}$ or $\mu_{ik}$). This makes edge probabilities, HPD/credible intervals, and other posterior summaries straightforward to compute.
+For posterior summaries, the retained matrices are flattened (vectorized)
+into parameter vectors. Rows correspond to retained posterior draws and
+columns correspond to fixed matrix entries, for example one column for
+\(B_{ij}\) or \(\mu_{ik}\). This makes edge probabilities, HPD/credible
+intervals, and other posterior summaries straightforward to compute.
 
 ```{r example}
 #######################################
 # Parameter Initialization
 #######################################
-B_seed = directlingam_seed(data_matrix)
-seed_edge_threshold = 0.05   # drop |seed coef| below this
-seed_rho_target = 0.95   # rescale if spectral radius exceeds this
-seed_settle_sweeps = 30     # mixture Gibbs sweeps before handing off
+B_seed = directlingam_seed(data_matrix)  # Initial coefficient matrix estimated using DirectLiNGAM
+seed_edge_threshold = 0.05  # Threshold for removing small absolute edge weights
+seed_rho_target = 0.95      # Maximum target spectral radius for rescaling the coefficient matrix
+seed_settle_sweeps = 30     # Number of Gibbs sampling sweeps for mixture initialization
 #######################################
 # Initialization
 #######################################  
@@ -358,10 +375,9 @@ in the causal effect coefficients, we examine the nonzero entries of the true
 causal effect matrix $B$.
 
 The figures below display the posterior estimates together with their 95\%
-HPD and equal-tailed credible intervals. For each causal edge, the red
-$\times$ marks the true value of the corresponding causal effect coefficient,
-while the black point and vertical interval summarize the posterior estimate
-and uncertainty. This allows each estimated effect to be compared directly
+HPD and equal-tailed credible intervals.For each causal edge, the red \(\color{red}{\times}\) marks the true value
+of the corresponding causal effect coefficient, while the black point and
+vertical interval summarize the posterior estimate and uncertainty. This allows each estimated effect to be compared directly
 with its ground-truth value. Overall, the posterior estimates lie close to the
 true effects, and the intervals generally cover the corresponding ground truth
 values, indicating accurate recovery of the causal effect magnitudes in this
@@ -645,17 +661,17 @@ params = list(
 #######################################
 
 example_list = generates_examples_DCG(
-  num_covariates = num_covariates,
-  N              = N,
-  M_input        = 2,          # components used to generate the errors
-  prob_sparsity  = 0.90,       # target edge density = 0.10
-  seed_input     = 21,
-  n_cycles       = 2,          # two vertex disjoint directed cycles
-  len_range      = c(2, 4),
-  mag_range      = c(0.4, 0.9),
-  prob_positive  = 0.5,
-  tol_sing       = 0.05,
-  rho_max        = 0.95
+  num_covariates = num_covariates,   # Number of features
+  N              = N,                # Sample size
+  M_input        = 2,                # Number of Gaussian mixture components used to generate errors
+  prob_sparsity  = 0.90,             # Probability of no edge (target edge density = 0.10)
+  seed_input     = 21,               # Random seed for data generation
+  n_cycles       = 2,                # Number of vertex-disjoint directed cycles
+  len_range      = c(2, 4),          # Range of directed cycle lengths
+  mag_range      = c(0.4, 0.9),      # Range of absolute values of nonzero edge weights
+  prob_positive  = 0.5,              # Probability that a nonzero edge weight is positive
+  tol_sing       = 0.05,             # Tolerance for near-singularity of the SEM system
+  rho_max        = 0.95              # Maximum allowed spectral radius of the coefficient matrix
 )
 
 
@@ -701,9 +717,9 @@ the stability requirement.
 
 B_seed = directlingam_seed(data_matrix)
 
-seed_edge_threshold = 0.05   # drop |seed coef| below this
-seed_rho_target     = 0.95   # stabilize initialization if needed
-seed_settle_sweeps  = 30     # mixture Gibbs sweeps before handing off
+seed_edge_threshold = 0.05  # Threshold for removing small absolute edge weights
+seed_rho_target = 0.95      # Target spectral radius for stabilizing the initial coefficient matrix
+seed_settle_sweeps = 30     # Number of Gibbs sampling sweeps for mixture initialization
 
 #######################################
 # Initialization
@@ -1002,8 +1018,7 @@ ggplot(
 
 
 #######################################
-# 95% credible intervals
-# for TRUE causal effects
+# 95% credible intervals for TRUE causal effects
 #######################################
 
 ci_sub =
